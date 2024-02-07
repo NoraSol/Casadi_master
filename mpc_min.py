@@ -59,15 +59,15 @@ pb= u+pw+ppv-pl-pel #power balance for the battery: important-> pd=u now since w
  #   t_in=50 #a bit coldr water that has not been heated by the DG
 t_in = if_else(u > 0, 80, 50)
 #Model equations!!!!!!!!!
-xdot= vertcat((w_tes*(t_in-x1)-q_loss)/rho*V, (w_tes*(x1-x2)-a_loss*(x2-T_outside))/c_house , pb/beta )
+xdot= vertcat((w_tes*(t_in-x1)-q_loss)/(rho*V), (w_tes*(x1-x2)-a_loss*(x2-T_outside))/c_house , pb/beta )
     
 #T_inn=T_in(pd) #need to create a pd-function possibly...
 
 #xdot = make_xdot()
 r_house=22.0 #reference temperature for ideal housetemperature...
-c_h=20 #weighing of the different components of the objective function...
-c_el=2
-c_co2=3
+c_h=20.0 #weighing of the different components of the objective function...
+c_el=0.2
+c_co2=100.0
 # Objective term -> uttrykk for cost-funksjon
 L= u**2*c_co2 + (u + pw+ ppv + pb - pl - pel)**2*c_el + (x2 -r_house)**2*c_h
 #L = x1**2 + x2**2 + x3**2 + u**2 # for minst cost må x1,x2 og u lik null! Her må jeg implementere en faktisk relevant cost-funksjon!!!!
@@ -124,9 +124,9 @@ for k in range(N):
     # New NLP variable for the control
     Uk = MX.sym('U_' + str(k))
     w   += [Uk]
-    lbw += [-1]
-    ubw += [1] #w er decision variable, xuuuxuxuxu
-    w0  += [0]
+    lbw += [-100]
+    ubw += [150] #w er decision variable, xuuuxuxuxu #trying to see if u gets bigger now
+    w0  += [1]
 
     # Integrate till the end of the interval
     Fk = F(x0=Xk, p=Uk) #x-en på slutt av første intervalll
@@ -140,12 +140,13 @@ for k in range(N):
     #changed now to have more realistic limits, let's see!!
     lbw += [50.0, 18.0, 20.0] #må adde en tredje her siden tre states!!
     ubw += [ 80.0, 25.0,90.0] 
-    w0  += [0.0,0.0,0.0] ### Is this where you want it to end??
+    w0+= [65.0, 20.0 , 70.0]
+   # w0  += [0.0,0.0,0.0] ### Is this where you want it to end??
     # Add equality constraint
     g   += [Xk_end-Xk] #blå minus rød fra video, multiple shoot constrainten!!! bruker g for vanlige constraints også
     #både equality og inequality constraints havner her, om ubegrenset: upper bound uendelig for eksempel
     lbg += [0, 0, 0]
-    ubg += [1, 1, 1] #changed this from [0,0,0] and it now evaluates objective function more times...
+    ubg += [0, 0, 0] #changed this from [0,0,0] and it now evaluates objective function more times...
 
 # Create an NLP solver
 prob = {'f': J, 'x': vertcat(*w), 'g': vertcat(*g)} #kom tilbake til parametere som varierer, om de inngår i difflikningene
