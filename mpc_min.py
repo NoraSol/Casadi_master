@@ -65,7 +65,7 @@ xdot= vertcat((w_tes*(t_in-x1)-q_loss)/rho*V, (w_tes*(x1-x2)-a_loss*(x2-T_outsid
 
 #xdot = make_xdot()
 r_house=22.0 #reference temperature for ideal housetemperature...
-c_h=1 #weighing of the different compunents of the objective function...
+c_h=1 #weighing of the different components of the objective function...
 c_el=2
 c_co2=3
 # Objective term -> uttrykk for cost-funksjon
@@ -129,22 +129,23 @@ for k in range(N):
     w0  += [0]
 
     # Integrate till the end of the interval
-    Fk = F(x0=Xk, p=Uk) #x-en på slutt av første intervaølll
+    Fk = F(x0=Xk, p=Uk) #x-en på slutt av første intervalll
     Xk_end = Fk['xf']
     J=J+Fk['qf'] #inkrementerer cost
 
     # New NLP variable for state at end of interval
     Xk = MX.sym('X_' + str(k+1), 3) #changed this one from 2 to 3 because we now have 3 x-es!!!!!!!!!!!!!
     w   += [Xk]
-    #have made the limits quite slack, can change later, this might be too slack
-    lbw += [0.0, 0.0, 0.0] #må adde en tredje her siden tre states!!
-    ubw += [ inf, inf,inf]
+    
+    #changed now to have more realistic limits, let's see!!
+    lbw += [50.0, 18.0, 20.0] #må adde en tredje her siden tre states!!
+    ubw += [ 80.0, 25.0,90.0] 
     w0  += [0.0,0.0,0.0] ### Is this where you want it to end??
     # Add equality constraint
     g   += [Xk_end-Xk] #blå minus rød fra video, multiple shoot constrainten!!! bruker g for vanlige constraints også
     #både equality og inequality constraints havner her, om ubegrenset: upper bound uendelig for eksempel
-    lbg += [0, 0]
-    ubg += [0, 0]
+    lbg += [0, 0, 0]
+    ubg += [1, 1, 1] #changed this from [0,0,0] and it now evaluates objective function more times...
 
 # Create an NLP solver
 prob = {'f': J, 'x': vertcat(*w), 'g': vertcat(*g)} #kom tilbake til parametere som varierer, om de inngår i difflikningene
