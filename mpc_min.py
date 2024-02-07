@@ -57,7 +57,7 @@ pb= u+pw+ppv-pl-pel #power balance for the battery: important-> pd=u now since w
  #   t_in=75 #hot water that has been heated by DG
 #else:
  #   t_in=50 #a bit coldr water that has not been heated by the DG
-t_in = if_else(u > 0, 75, 50)
+t_in = if_else(u > 0, 80, 50)
 #Model equations!!!!!!!!!
 xdot= vertcat((w_tes*(t_in-x1)-q_loss)/rho*V, (w_tes*(x1-x2)-a_loss*(x2-T_outside))/c_house , pb/beta )
     
@@ -65,11 +65,11 @@ xdot= vertcat((w_tes*(t_in-x1)-q_loss)/rho*V, (w_tes*(x1-x2)-a_loss*(x2-T_outsid
 
 #xdot = make_xdot()
 r_house=22.0 #reference temperature for ideal housetemperature...
-c_h=1 #weighing of the different components of the objective function...
+c_h=20 #weighing of the different components of the objective function...
 c_el=2
 c_co2=3
 # Objective term -> uttrykk for cost-funksjon
-L= u*c_co2 + (u + pw+ ppv + pb - pl - pel)**2*c_el + (x2 -r_house)**2*c_h
+L= u**2*c_co2 + (u + pw+ ppv + pb - pl - pel)**2*c_el + (x2 -r_house)**2*c_h
 #L = x1**2 + x2**2 + x3**2 + u**2 # for minst cost må x1,x2 og u lik null! Her må jeg implementere en faktisk relevant cost-funksjon!!!!
 
 # Formulate discrete time dynamics
