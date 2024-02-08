@@ -1,6 +1,6 @@
 from casadi import *
 
-T = 10. # Time horizon
+T = 24.0 #changing from 10 to 24 hours to be "realistic"#10. # Time horizon
 N = 20 # number of control intervals
 
 # Declare model variables
@@ -21,16 +21,18 @@ E_bmin=20
 Ebmax=80
 V=1000
 w_tes=2 #denne må endres til å kunne variere med tanke på pumpen, dette er jo totale gjennomstrømningen i systemet...
-
+pd_max=200 #kWh
+TES_max=80 #degrees celcius
+TES_min= 50 #degrees celcius
 #in the last system several of the power-funtions were functions of t, how to do this descrete?
 def wind():
     return 20 
 def solar():
-    return 20
+    return 200
 def elecload():
     return 230
 def elkjel():
-    return 10
+    return 116
 def q_l():
     return 0.1
 
@@ -50,26 +52,31 @@ q_loss=q_l()
        # pd=200
         #Power balance for battery
     
+#defining the pd value so based on u being from 0 to 1 we have our pd value
+pd= pd_max*u
 
-pb= u+pw+ppv-pl-pel #power balance for the battery: important-> pd=u now since we control everything throug pd!!
+pb= pd+pw+ppv-pl-pel #power balance for the battery: important-> pd=u now since we control everything throug pd!!
 
-#if (u>0): 
- #   t_in=75 #hot water that has been heated by DG
-#else:
- #   t_in=50 #a bit coldr water that has not been heated by the DG
-t_in = if_else(u > 0, 80, 50)
+#defining the temperature of the water entering the TES based on the power produced in the DG
+def temp_in(u):
+    t_in= TES_min + u*(TES_max-TES_min)
+    return t_in
+
+
+t_in_tes=temp_in(u)
+
 #Model equations!!!!!!!!!
-xdot= vertcat((w_tes*(t_in-x1)-q_loss)/(rho*V), (w_tes*(x1-x2)-a_loss*(x2-T_outside))/c_house , pb/beta )
+xdot= vertcat((w_tes*(t_in_tes-x1)-q_loss)/(rho*V), (w_tes*(x1-x2)-a_loss*(x2-T_outside))/c_house , pb/beta )
     
 #T_inn=T_in(pd) #need to create a pd-function possibly...
 
 #xdot = make_xdot()
 r_house=22.0 #reference temperature for ideal housetemperature...
 c_h=20.0 #weighing of the different components of the objective function...
-c_el=0.2
-c_co2=100.0
+c_el=2.0
+c_co2=10.0
 # Objective term -> uttrykk for cost-funksjon
-L= u**2*c_co2 + (u + pw+ ppv + pb - pl - pel)**2*c_el + (x2 -r_house)**2*c_h
+L= u**2*c_co2 + (pd + pw+ ppv + pb - pl - pel)**2*c_el + (x2 -r_house)**2*c_h
 #L = x1**2 + x2**2 + x3**2 + u**2 # for minst cost må x1,x2 og u lik null! Her må jeg implementere en faktisk relevant cost-funksjon!!!!
 
 # Formulate discrete time dynamics
@@ -124,9 +131,9 @@ for k in range(N):
     # New NLP variable for the control
     Uk = MX.sym('U_' + str(k))
     w   += [Uk]
-    lbw += [-100]
-    ubw += [150] #w er decision variable, xuuuxuxuxu #trying to see if u gets bigger now
-    w0  += [1]
+    lbw += [-1] #dette er grensene for u 
+    ubw += [1] #w er decision variable, xuuuxuxuxu #trying to see if u gets bigger now
+    w0  += [0]
 
     # Integrate till the end of the interval
     Fk = F(x0=Xk, p=Uk) #x-en på slutt av første intervalll
@@ -140,7 +147,7 @@ for k in range(N):
     #changed now to have more realistic limits, let's see!!
     lbw += [50.0, 18.0, 20.0] #må adde en tredje her siden tre states!!
     ubw += [ 80.0, 25.0,90.0] 
-    w0+= [65.0, 20.0 , 70.0]
+    w0+= [50.0, 20.0 , 40.0] #[65.0, 20.0 , 70.0] #this does not affect, what happens here???????????????????????????????????????????
    # w0  += [0.0,0.0,0.0] ### Is this where you want it to end??
     # Add equality constraint
     g   += [Xk_end-Xk] #blå minus rød fra video, multiple shoot constrainten!!! bruker g for vanlige constraints også
