@@ -46,15 +46,15 @@ xdot= vertcat((w_tes*(t_in_tes-x1)-q_loss)/(rho*V), (w_tes*(x1-x2)-q_rad)/250) #
 
 #when c_h=0: seeing if the
 c_X1=5.0 #weighing of the different components of the objective function...
-C_X2=5.0
-c_co2=0.0 #seeing what the temperatures end up with now
-#reference temperatures to ensure high enough temperature in the "house"
+C_X2=10.0
+c_co2=5.0 #seeing what the temperatures end up with now
+#reference temperatures to ensure high enough temperature in the "house", still don't know what these bounds should be...
 x1_ref=68.0
 x2_ref=55.0
 
 # Objective term -> uttrykk for cost-funksjon
 L= u**2*c_co2 + C_X2*(x2 - x2_ref)**2 + c_X1*(x1-x1_ref)**2
-#L = x1**2 + x2**2 + x3**2 + u**2 # for minst cost må x1,x2 og u lik null! Her må jeg implementere en faktisk relevant cost-funksjon!!!!
+
 
 # Formulate discrete time dynamics
 if False:
