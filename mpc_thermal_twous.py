@@ -10,7 +10,11 @@ N = 20 # number of control intervals
 x1 = MX.sym('x1')
 x2 = MX.sym('x2')
 x = vertcat(x1, x2)
-u = MX.sym('u')
+u1 = MX.sym('u1') #capacity percentage DG
+u2 = MX.sym('u2') #capacity percentage boiler
+u3 = MX.sym('u3') #percentage of total mass flow flowing into DG
+u4 = MX.sym('u4') #percentage of total mass flow flowing into boiler
+u= vertcat(u1,u2,u3,u4)
 #how to get in parameters in the best way? 
 #and how to make the timeseries of weather data?
 #Parameters in my system
@@ -35,28 +39,29 @@ def q_sorad():
     return 50.0
 q_rad=q_sorad() #defining heat being used in the house...
 
-#defining the temperature of the water entering the TES based on the power produced in the DG
-def temp_in(u,x2):
-    t_in= x2 + u*(TES_max-x2)
+#temperature of water passing through the DG
+def temp_dg():
+    t_in= (x2+u1*(TES_max-x2))*u3
     return t_in
-t_in_tes= temp_in(u,x2) #defining temp of water heated by DG
-
-#trying to get the electric boilers into the picture now:
-def q_boiler(u,x2):
-    #should I be using u? How can I differentiate between using u on the boiler and on the DG?
-    t_in= x2-u*(boiler_max-x2) #jo mindre u bruker her, jo mer tar vi fra electric boiler
+t_dg=temp_dg()
+#temperature of water passing by the DG (not entering and being heated)
+t_not_dg=x2*(1-u3)
+#total temp og mixed water heated and not heated by the DG
+t_mix = t_dg + t_not_dg
+#temperature of the mixed water after being heated by boiler
+def t_boile():
+    t_in=u4*(t_mix+u2*(boiler_max-t_mix))
     return t_in
-t_in_boiler= q_boiler(u,x2)
+t_boil= t_boile()
+#water bypassing the boiler
+t_not_boil= t_mix*(1-u4)
 
-#Model equations!!!!!!!!!
-#### SE PÅ FREDAG: ADDE NY STATE u2 so the water can bypass the elkjel, must think out a way to know the amount of water bypassing or not 
-###bypassing the DG/elkjel, some water might be heated by both, some might be heated by one of them... hmmm...
-## maybe have u1,u2,u3,u4, controlling heat percentage of DG and boiler, and mass flow through each (some percentage of w_tes), have to add it all together somehow...
+#all the water going into the TES
+t_in_tes=t_boil+t_not_boil
 
-xdot= vertcat((w_tes*(t_in_tes+t_in_boiler-x1)-q_loss)/(rho*V), (w_tes*(x1-x2)-q_rad)/250) #now state nr two is the temperature of water coming out of the house
+xdot= vertcat((w_tes*(t_in_tes-x1)-q_loss)/(rho*V), (w_tes*(x1-x2)-q_rad)/250) #now state nr two is the temperature of water coming out of the house
 #this will depend on wht the temperature of the house and what heat the user decides to put on.....
 
-#xdot = make_xdot()
 
 #when c_h=0: seeing if the
 c_X1=3.0 #weighing of the different components of the objective function...
@@ -68,7 +73,9 @@ x1_ref=68.0
 x2_ref=55.0
 
 # Objective term -> uttrykk for cost-funksjon
-L= u**2*c_co2 + C_X2*(x2 - x2_ref)**2 + c_X1*(x1-x1_ref)**2 + c_boiler*(t_in_boiler)**2
+L= u1**2*c_co2 + C_X2*(x2 - x2_ref)**2 + c_X1*(x1-x1_ref)**2 + c_boiler*u2**2 
+#here in the objective function, the usage of the DG and boiler is punished, but not the water flowing through
+#I think this makes sense, but might need to be looked at...
 
 
 # Formulate discrete time dynamics
@@ -82,7 +89,7 @@ else:
    DT = T/N/M #dette er time-step
    f = Function('f', [x, u], [xdot, L]) #f(xk,uk), dette er funksjoin man vil integrere, ender opp med x_dot og L
    X0 = MX.sym('X0', 2) #init state,
-   U = MX.sym('U')
+   U = MX.sym('U', 4) #sier her at det er fire u-er!!!
    X = X0
    Q = 0
    for j in range(M): #mer nøyaktig versjon, er runge kutta 4, de ulike k-likningene osv, her finner vi neste state
@@ -121,11 +128,11 @@ w0 += [67.0, 50.0 ] #her begynner casaadi å søke, må være feasible!!!!, ikke
 # Formulate the NLP
 for k in range(N):
     # New NLP variable for the control
-    Uk = MX.sym('U_' + str(k))
+    Uk = MX.sym('U_' + str(k), 4) # have to put ,4 in this formulation????????????????????????????????????????????????????
     w   += [Uk]
-    lbw += [0] #dette er grensene for u 
-    ubw += [1] #w er decision variable, xuuuxuxuxu #trying to see if u gets bigger now
-    w0  += [0]
+    lbw += [0,0,0,0] #dette er grensene for u (here it is taken into account that there ar 4 u's)
+    ubw += [1,1,1,1] #w er decision variable, xuuuxuxuxu #trying to see if u gets bigger now
+    w0  += [0,0,0,0]
 
     # Integrate till the end of the interval
     Fk = F(x0=Xk, p=Uk) #x-en på slutt av første intervalll
@@ -156,10 +163,14 @@ sol = solver(x0=w0, lbx=lbw, ubx=ubw, lbg=lbg, ubg=ubg)
 w_opt = sol['x'].full().flatten()
 
 # Plot the solution, sånn henter man ut variablene
-x1_opt = w_opt[0::3]
-x2_opt = w_opt[1::3]
+x1_opt = w_opt[0::6]
+x2_opt = w_opt[1::6]
 #x3_opt = w_opt[2::4] # adder tilstand nr 3 her, satser p åat det funker...
-u_opt = w_opt[2::3]
+u1_opt = w_opt[2::6]
+u2_opt = w_opt[3::6]
+u3_opt = w_opt[4::6]
+u4_opt = w_opt[5::6]
+
 
 tgrid = [T/N*k for k in range(N+1)]
 
@@ -169,8 +180,11 @@ plt.clf()
 plt.plot(tgrid, x1_opt, '--')
 plt.plot(tgrid, x2_opt, '-')
 #plt.plot(tgrid,x3_opt, '.')
-plt.step(tgrid, vertcat(DM.nan(1), u_opt), '-.')
+plt.step(tgrid, vertcat(DM.nan(1), u1_opt), '-.') #her i plottingen kan det være vanskelig å få det riktig hmmmm....
+plt.step(tgrid, vertcat(DM.nan(1), u2_opt), '-.') #prøver å få plotta alle u-ene, får se hva som skjer...
+plt.step(tgrid, vertcat(DM.nan(1), u3_opt), '-.')
+plt.step(tgrid, vertcat(DM.nan(1), u4_opt), '-.')
 plt.xlabel('t')
-plt.legend(['x1','x2','u'])
+plt.legend(['x1','x2','u1','u2','u3','u4'])
 plt.grid()
 plt.show()
