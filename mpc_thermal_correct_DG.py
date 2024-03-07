@@ -15,16 +15,12 @@ u2 = MX.sym('u2') #capacity percentage boiler
 u3 = MX.sym('u3') #percentage of total mass flow flowing into DG
 u4 = MX.sym('u4') #percentage of total mass flow flowing into boiler
 u= vertcat(u1,u2,u3,u4)
-#how to get in parameters in the best way? 
-#and how to make the timeseries of weather data?
+
 #Parameters in my system
 rho=1.0
-#a_loss=4.0
-#c_house= 3000#250 #80 #double check if this should be changed..
 V_rad=3000
 V=12000 #1000
 w_tes=200 #denne må endres til å kunne variere med tanke på pumpen, dette er jo totale gjennomstrømningen i systemet...
-#pd_max=200 #kWh
 DG_max=85 #degrees celcius
 TES_min= 50 #degrees celcius
 boiler_max=85
@@ -35,33 +31,35 @@ def q_l():
     return 0.1
 
 q_loss=q_l()
+
 def q_sorad(): 
     return 300.0
 q_rad=q_sorad() #defining heat being used in the house...
 
-#temperature of water passing through the DG
-def temp_dg():
-    t_in= (x2+u1*(DG_max-x2))*u3
-    return t_in
-t_dg=temp_dg()
-#temperature of water passing by the DG (not entering and being heated)
-t_not_dg=x2*(1-u3)
-#total temp og mixed water heated and not heated by the DG
-t_mix = t_dg + t_not_dg
-#temperature of the mixed water after being heated by boiler
-def t_boile():
-    t_in=u4*(t_mix+u2*(boiler_max-t_mix))
-    return t_in
-t_boil= t_boile()
-#water bypassing the boiler
-t_not_boil= t_mix*(1-u4)
+#defining the heat that the DG returns when on (being used at 70%): 
+DG_heat = 22.0 # kW heat
+DG_el = 140 # kW power
+B_MAX_HEAT = 128 #kW heat?
 
-#all the water going into the TES
-t_in_tes=t_boil+t_not_boil
 
-xdot= vertcat((w_tes*(t_in_tes-x1)-q_loss)/(rho*V), (w_tes*(x1-x2)-q_rad)/V_rad) #now state nr two is the temperature of water coming out of the house
+def dg(u1_value):
+    if u1_value > 0.0:
+        return 1
+    else:
+        return 0
+    
+for k in range(N):
+    u1_value = u1_opt[k]
+    dg_on = dg(u1_value)
+
+q_dg=DG_heat*dg_on
+
+q_boiler=u2*B_MAX_HEAT
+
+xdot= vertcat((q_dg + q_boiler - w_tes*(x1)-q_loss)/(rho*V), (w_tes*(x1-x2)-q_rad)/V_rad) #now state nr two is the temperature of water coming out of the house
 #this will depend on wht the temperature of the house and what heat the user decides to put on.....
 
+#how to make u1 be EITHER 0 or 1 depending on the objective function and constraints?????????????????
 
 #when c_h=0: seeing if the
 c_X1=0.5 #weighing of the different components of the objective function...
@@ -70,10 +68,10 @@ c_boiler=3.5
 c_co2=2.0 #seeing what the temperatures end up with now
 #reference temperatures to ensure high enough temperature in the "house", still don't know what these bounds should be...
 x1_ref=71.0
-x2_ref=64.0
+
 
 # Objective term -> uttrykk for cost-funksjon
-L= u1**2*c_co2 + C_X2*(x2 - x2_ref)**2 + c_X1*(x1-x1_ref)**2 + c_boiler*u2**2 
+L= u1**2*c_co2  + c_X1*(x1-x1_ref)**2 + c_boiler*u2**2 
 #here in the objective function, the usage of the DG and boiler is punished, but not the water flowing through
 #I think this makes sense, but might need to be looked at...
 
@@ -132,6 +130,7 @@ for k in range(N):
     w   += [Uk]
     lbw += [0,0,0,0] #dette er grensene for u (here it is taken into account that there ar 4 u's)
     ubw += [1,1,1,1] #w er decision variable, xuuuxuxuxu #trying to see if u gets bigger now
+    
     w0  += [0,0,0,0]
 
     # Integrate till the end of the interval
@@ -165,7 +164,7 @@ w_opt = sol['x'].full().flatten()
 # Plot the solution, sånn henter man ut variablene
 x1_opt = w_opt[0::6]
 x2_opt = w_opt[1::6]
-#x3_opt = w_opt[2::4] # adder tilstand nr 3 her, satser p åat det funker...
+
 u1_opt = w_opt[2::6]
 u2_opt = w_opt[3::6]
 u3_opt = w_opt[4::6]
