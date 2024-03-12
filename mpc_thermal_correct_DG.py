@@ -9,7 +9,9 @@ N = 20 # number of control intervals
 # Declare model variables
 x1 = MX.sym('x1')
 x2 = MX.sym('x2')
-x = vertcat(x1, x2)
+x3 = MX.sym('x3')
+x4 = MX.sym('x4')
+x = vertcat(x1, x2, x3, x4)
 u1 = MX.sym('u1') #capacity percentage DG
 u2 = MX.sym('u2') #capacity percentage boiler
 u3 = MX.sym('u3') #percentage of total mass flow flowing into DG
@@ -17,20 +19,19 @@ u4 = MX.sym('u4') #percentage of total mass flow flowing into boiler
 u= vertcat(u1,u2,u3,u4)
 
 #Parameters in my system
+cp=4.186
 rho=1.0
+V_dg = 3000
+V_boiler = 3000                                                                                                                                                                                                                                     
 V_rad=3000
-V=12000 #1000
-w_tes=200 #denne må endres til å kunne variere med tanke på pumpen, dette er jo totale gjennomstrømningen i systemet...
+V_tes=12000 #1000
+w_tot=200 #denne må endres til å kunne variere med tanke på pumpen, dette er jo totale gjennomstrømningen i systemet...
 DG_max=85 #degrees celcius
 TES_min= 50 #degrees celcius
 boiler_max=85
 boiler_min=50
 #in the last system several of the power-funtions were functions of t, how to do this descrete?
-
-def q_l():
-    return 0.1
-
-q_loss=q_l()
+q_loss= 0.1
 
 def q_sorad(): 
     return 300.0
@@ -40,34 +41,22 @@ q_rad=q_sorad() #defining heat being used in the house...
 DG_heat = 22.0 # kW heat
 DG_el = 140 # kW power
 B_MAX_HEAT = 128 #kW heat?
-
-
-def dg(u1_value):
-    if u1_value > 0.0:
-        return 1
-    else:
-        return 0
-    
-for k in range(N):
-    u1_value = u1_opt[k]
-    dg_on = dg(u1_value)
-
-q_dg=DG_heat*dg_on
-
+q_dg=u1*DG_heat
 q_boiler=u2*B_MAX_HEAT
-
-xdot= vertcat((q_dg + q_boiler - w_tes*(x1)-q_loss)/(rho*V), (w_tes*(x1-x2)-q_rad)/V_rad) #now state nr two is the temperature of water coming out of the house
+t_mix = x1 + x4*(1-u3)
+t_in_tes = x2 + x1*(1-u4)
+xdot= vertcat((cp*u3*(x4-x1) + q_dg-q_loss)/(rho*V_dg), (cp*u4*(t_mix-x2) -q_loss + q_boiler)/rho*V_boiler, (cp*w_tot*(t_in_tes - x3) -q_loss)/rho*V_tes, (cp*w_tot*(x3-x4) - q_rad - q_loss)/rho*V_rad) #now state nr two is the temperature of water coming out of the house
 #this will depend on wht the temperature of the house and what heat the user decides to put on.....
 
 #how to make u1 be EITHER 0 or 1 depending on the objective function and constraints?????????????????
 
 #when c_h=0: seeing if the
 c_X1=0.5 #weighing of the different components of the objective function...
-C_X2=0.5
-c_boiler=3.5
+
+c_boiler=2.0
 c_co2=2.0 #seeing what the temperatures end up with now
 #reference temperatures to ensure high enough temperature in the "house", still don't know what these bounds should be...
-x1_ref=71.0
+x1_ref=68.0
 
 
 # Objective term -> uttrykk for cost-funksjon
@@ -86,7 +75,7 @@ else:
    M = 4 # RK4 steps per interval
    DT = T/N/M #dette er time-step
    f = Function('f', [x, u], [xdot, L]) #f(xk,uk), dette er funksjoin man vil integrere, ender opp med x_dot og L
-   X0 = MX.sym('X0', 2) #init state,
+   X0 = MX.sym('X0', 4) #init state,
    U = MX.sym('U', 4) #sier her at det er fire u-er!!!
    X = X0
    Q = 0
@@ -100,7 +89,7 @@ else:
    F = Function('F', [X0, U], [X, Q],['x0','p'],['xf','qf']) #xf: x final, Qf : final cost, F er integralet av f
 
 # Evaluate at a test point
-Fk = F(x0=[67.0,55.0],p=0.4) #tror dette er startpunkt men må sjekke ut?
+Fk = F(x0=[67.0, 67.0, 67.0, 50.0 ],p=0.4) #tror dette er startpunkt men må sjekke ut?
 #Fk = F(x0=[0.2,0.3,],p=0.4)
 print(Fk['xf'])
 print(Fk['qf'])
@@ -117,11 +106,11 @@ ubg = []
 
 # "Lift" initial conditions, vet hva init tilstander er og lager equality constraint, casadi har ikke dette, men sier at 
 #lb og ub er det samme
-Xk = MX.sym('X0', 2) #changed to three since we now have three x-es!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+Xk = MX.sym('X0', 4) #changed to three since we now have three x-es!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 w += [Xk]
-lbw += [67.0, 55.0 ] #init conditions!!!!!!!!!!!!!!
-ubw += [67.0, 55.0 ]
-w0 += [67.0, 55.0 ] #her begynner casaadi å søke, må være feasible!!!!, ikke del på null
+lbw += [67.0, 66.5, 66.0, 53.0 ]  #init conditions!!!!!!!!!!!!!!
+ubw += [67.0, 66.5, 66.0, 53.0 ] 
+w0 += [67.0, 66.5, 66.0, 53.0 ]  #her begynner casaadi å søke, må være feasible!!!!, ikke del på null
 
 # Formulate the NLP
 for k in range(N):
@@ -139,19 +128,19 @@ for k in range(N):
     J=J+Fk['qf'] #inkrementerer cost
 
     # New NLP variable for state at end of interval
-    Xk = MX.sym('X_' + str(k+1), 2) 
+    Xk = MX.sym('X_' + str(k+1), 4) 
     w   += [Xk]
     
     #changed now to have more realistic limits, let's see!!
-    lbw += [40.0, 20.0] #må adde en tredje her siden tre states!!
-    ubw += [ 80.0, 70.0] 
-    w0+= [67.0, 55.0 ] #
+    lbw += [65.0, 65.0, 65.0, 40.0 ] 
+    ubw += [90.0, 90.0, 90.0, 90.0 ]
+    w0 += [68.0, 67.5, 67.0, 55.0 ] 
   
     # Add equality constraint
     g   += [Xk_end-Xk] #blå minus rød fra video, multiple shoot constrainten!!! bruker g for vanlige constraints også
     #både equality og inequality constraints havner her, om ubegrenset: upper bound uendelig for eksempel
-    lbg += [0, 0]
-    ubg += [0, 0] #changed this from [0,0,0] and it now evaluates objective function more times...
+    lbg += [0, 0, 0, 0]
+    ubg += [0, 0, 0, 0] #changed this from [0,0,0] and it now evaluates objective function more times...
 
 # Create an NLP solver
 prob = {'f': J, 'x': vertcat(*w), 'g': vertcat(*g)} #kom tilbake til parametere som varierer, om de inngår i difflikningene
@@ -162,13 +151,14 @@ sol = solver(x0=w0, lbx=lbw, ubx=ubw, lbg=lbg, ubg=ubg)
 w_opt = sol['x'].full().flatten()
 
 # Plot the solution, sånn henter man ut variablene
-x1_opt = w_opt[0::6]
-x2_opt = w_opt[1::6]
-
-u1_opt = w_opt[2::6]
-u2_opt = w_opt[3::6]
-u3_opt = w_opt[4::6]
-u4_opt = w_opt[5::6]
+x1_opt = w_opt[0::8]
+x2_opt = w_opt[1::8]
+x3_opt = w_opt[2::8]
+x4_opt = w_opt[3::8]
+u1_opt = w_opt[4::8]
+u2_opt = w_opt[5::8]
+u3_opt = w_opt[6::8]
+u4_opt = w_opt[7::8]
 
 
 tgrid = [T/N*k for k in range(N+1)]
@@ -178,12 +168,17 @@ plt.figure(1)
 plt.clf()
 plt.plot(tgrid, x1_opt, '--')
 plt.plot(tgrid, x2_opt, '-')
-#plt.plot(tgrid,x3_opt, '.')
+plt.plot(tgrid,x3_opt, '.')
+plt.plot(tgrid,x4_opt, '.-')
+plt.xlabel('t')
+plt.legend(['x1:temp water dg','x2:temp water boiler','x3:temp water tes','x4:temp water ahouse'])
+#prøver å få det til to plots, let's see ...
+plt.figure(2)
 plt.step(tgrid, vertcat(DM.nan(1), u1_opt), '-.') #her i plottingen kan det være vanskelig å få det riktig hmmmm....
 plt.step(tgrid, vertcat(DM.nan(1), u2_opt), '-.') #prøver å få plotta alle u-ene, får se hva som skjer...
 plt.step(tgrid, vertcat(DM.nan(1), u3_opt), '-.')
 plt.step(tgrid, vertcat(DM.nan(1), u4_opt), '-.')
 plt.xlabel('t')
-plt.legend(['x1:Temp_TES','x2:Temp_after_LOAD','u1:power_%_DG','u2:power_%_boiler','u3:%_mass_flow_DG','u4:%_mass_flow_boiler'])
+plt.legend(['u1:power_%_DG','u2:power_%_boiler','u3:%_mass_flow_DG','u4:%_mass_flow_boiler'])
 plt.grid()
 plt.show()
