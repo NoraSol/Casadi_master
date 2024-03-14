@@ -24,43 +24,54 @@ rho=1.0
 V_dg = 3000
 V_boiler = 3000                                                                                                                                                                                                                                     
 V_rad=3000
-V_tes=12000 #1000
-w_tot=200 #denne må endres til å kunne variere med tanke på pumpen, dette er jo totale gjennomstrømningen i systemet...
-DG_max=85 #degrees celcius
-TES_min= 50 #degrees celcius
-boiler_max=85
-boiler_min=50
+V_tes=12000 #liter
+w_tot=500 #denne må endres til å kunne variere med tanke på pumpen, dette er jo totale gjennomstrømningen i systemet...
 #in the last system several of the power-funtions were functions of t, how to do this descrete?
 q_loss= 0.1
 
 def q_sorad(): 
-    return 300.0
+    return 17000.0
 q_rad=q_sorad() #defining heat being used in the house...
 
 #defining the heat that the DG returns when on (being used at 70%): 
-DG_heat = 22.0 # kW heat
-DG_el = 140 # kW power
-B_MAX_HEAT = 128 #kW heat?
-q_dg=u1*DG_heat
-q_boiler=u2*B_MAX_HEAT
-t_mix = x1 + x4*(1-u3)
-t_in_tes = x2 + x1*(1-u4)
-xdot= vertcat((cp*u3*(x4-x1) + q_dg-q_loss)/(rho*V_dg), (cp*u4*(t_mix-x2) -q_loss + q_boiler)/rho*V_boiler, (cp*w_tot*(t_in_tes - x3) -q_loss)/rho*V_tes, (cp*w_tot*(x3-x4) - q_rad - q_loss)/rho*V_rad) #now state nr two is the temperature of water coming out of the house
+DG_heat = 22000.0 # kW heat
+DG_el = 140000.0 # kW power
+B_MAX_HEAT = 128000.0 #kW heat?
+##########################   kontroversielt   #####################################
+#def dgq():
+ #   q_dg = if_else(u3 > 0.0, u1 * DG_heat, 0)
+  #  return q_dg
+#q_DG= dgq()
+#def boilerq():
+ #   q_boiler= if_else(u4 > 0.0, u2*B_MAX_HEAT,0)
+  #  return q_boiler
+#q_BOILER= boilerq()
+#######################   kontroversielt   ###################################
+q_DG= u1*DG_heat
+q_BOILER= u2*B_MAX_HEAT
+
+t_mix_ratio = u3*x1 + x4*(1-u3)
+t_in_tes_ratio = u4*x2 + t_mix_ratio*(1-u4) #viktig at det ikke bare er x1(1-u4)
+xdot= vertcat((cp*u3*w_tot*(x4-x1) + q_DG-q_loss)/(rho*V_dg*cp), (cp*u4*w_tot*(t_mix_ratio-x2) -q_loss + q_BOILER)/(rho*V_boiler*cp), (cp*w_tot*(t_in_tes_ratio - x3) -q_loss)/(rho*V_tes*cp), (cp*w_tot*(x3-x4) - q_rad - q_loss)/(rho*V_rad*cp)) #now state nr two is the temperature of water coming out of the house
 #this will depend on wht the temperature of the house and what heat the user decides to put on.....
 
 #how to make u1 be EITHER 0 or 1 depending on the objective function and constraints?????????????????
 
 #when c_h=0: seeing if the
-c_X1=0.5 #weighing of the different components of the objective function...
+c_X3=20.5 #weighing of the different components of the objective function...
+c_x1=0.0
+c_x2=0.0
 
-c_boiler=2.0
-c_co2=2.0 #seeing what the temperatures end up with now
+c_boiler=0.5
+c_co2=5.0 #seeing what the temperatures end up with now
 #reference temperatures to ensure high enough temperature in the "house", still don't know what these bounds should be...
-x1_ref=68.0
+x3_ref=65.0
+x1_ref=75.0
+x2_ref=75.0
 
 
 # Objective term -> uttrykk for cost-funksjon
-L= u1**2*c_co2  + c_X1*(x1-x1_ref)**2 + c_boiler*u2**2 
+L= u1**2*c_co2 + u3**2*c_co2 + u4**2*c_boiler + c_X3*(x3-x3_ref)**2 + c_boiler*u2**2  + c_x1*(x1-x1_ref)**2 + c_x2*(x2-x2_ref)**2 #-u3**2 -u4**2# u3 og u4 er for å se om det går noenting gjennom der nå...
 #here in the objective function, the usage of the DG and boiler is punished, but not the water flowing through
 #I think this makes sense, but might need to be looked at...
 
@@ -73,7 +84,7 @@ if False:
 else:
    # Fixed step Runge-Kutta 4 integrator
    M = 4 # RK4 steps per interval
-   DT = T/N/M #dette er time-step
+   DT = T/N/M #dette er time-step 
    f = Function('f', [x, u], [xdot, L]) #f(xk,uk), dette er funksjoin man vil integrere, ender opp med x_dot og L
    X0 = MX.sym('X0', 4) #init state,
    U = MX.sym('U', 4) #sier her at det er fire u-er!!!
@@ -89,7 +100,7 @@ else:
    F = Function('F', [X0, U], [X, Q],['x0','p'],['xf','qf']) #xf: x final, Qf : final cost, F er integralet av f
 
 # Evaluate at a test point
-Fk = F(x0=[67.0, 67.0, 67.0, 50.0 ],p=0.4) #tror dette er startpunkt men må sjekke ut?
+Fk = F(x0=[62.0, 62, 62.0, 62.0 ],p=0.4) #tror dette er startpunkt men må sjekke ut?
 #Fk = F(x0=[0.2,0.3,],p=0.4)
 print(Fk['xf'])
 print(Fk['qf'])
@@ -108,9 +119,10 @@ ubg = []
 #lb og ub er det samme
 Xk = MX.sym('X0', 4) #changed to three since we now have three x-es!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 w += [Xk]
-lbw += [67.0, 66.5, 66.0, 53.0 ]  #init conditions!!!!!!!!!!!!!!
-ubw += [67.0, 66.5, 66.0, 53.0 ] 
-w0 += [67.0, 66.5, 66.0, 53.0 ]  #her begynner casaadi å søke, må være feasible!!!!, ikke del på null
+#lbw += [67.0, 66.5, 66.0, 53.0 ]  #init conditions!!!!!!!!!!!!!!
+lbw +=[62.0, 62, 62.0, 62.0 ]
+ubw += [62.0, 62, 62.0, 62.0 ]
+w0 += [62.0, 62, 62.0, 62.0 ] #her begynner casaadi å søke, må være feasible!!!!, ikke del på null
 
 # Formulate the NLP
 for k in range(N):
@@ -132,9 +144,9 @@ for k in range(N):
     w   += [Xk]
     
     #changed now to have more realistic limits, let's see!!
-    lbw += [65.0, 65.0, 65.0, 40.0 ] 
+    lbw += [40.0, 40.0, 40.0, 30.0 ] # temperatur av TES skal eeeeeeeeegt ikke gå lavere enn 65 men tester dette....
     ubw += [90.0, 90.0, 90.0, 90.0 ]
-    w0 += [68.0, 67.5, 67.0, 55.0 ] 
+    w0 += [62.0, 62, 62.0, 62.0 ]  #endret her til 78 på dg
   
     # Add equality constraint
     g   += [Xk_end-Xk] #blå minus rød fra video, multiple shoot constrainten!!! bruker g for vanlige constraints også
