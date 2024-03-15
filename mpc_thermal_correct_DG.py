@@ -4,7 +4,8 @@ from casadi import *
 #Then it is very likely (depending on the cost) that either the DG or the EB is preferred based on cost
 
 T = 24.0 #changing from 10 to 24 hours to be "realistic"#10. # Time horizon
-N = 20 # number of control intervals
+N = 144 # number of control intervals
+
 
 # Declare model variables
 x1 = MX.sym('x1')
@@ -19,13 +20,14 @@ u4 = MX.sym('u4') #percentage of total mass flow flowing into boiler
 u= vertcat(u1,u2,u3,u4)
 
 #Parameters in my system
-cp=4.186
-rho=1.0
-V_dg = 3000
-V_boiler = 3000                                                                                                                                                                                                                                     
-V_rad=3000
-V_tes=12000 #liter
-w_tot=500 #denne må endres til å kunne variere med tanke på pumpen, dette er jo totale gjennomstrømningen i systemet...
+cp=4.186 # Joule/(gram*degree celcius)
+rho=1.0  #1000 kg/m3 = 1 kg/dm3 = 1 kg/l
+c_dg_heatcap = 3000 
+c_boiler_heatcap = 3000                                                                                                                                                                                                                                     
+c_rad_heatcap=3000
+V_tes=12000 #liter 
+#the unit is kilo/sec (liter/sec)
+w_tot= 1200 # 2l/s*10min=2l/s*10*60s=1200l(kg)
 #in the last system several of the power-funtions were functions of t, how to do this descrete?
 q_loss= 0.1
 
@@ -52,7 +54,7 @@ q_BOILER= u2*B_MAX_HEAT
 
 t_mix_ratio = u3*x1 + x4*(1-u3)
 t_in_tes_ratio = u4*x2 + t_mix_ratio*(1-u4) #viktig at det ikke bare er x1(1-u4)
-xdot= vertcat((cp*u3*w_tot*(x4-x1) + q_DG-q_loss)/(rho*V_dg*cp), (cp*u4*w_tot*(t_mix_ratio-x2) -q_loss + q_BOILER)/(rho*V_boiler*cp), (cp*w_tot*(t_in_tes_ratio - x3) -q_loss)/(rho*V_tes*cp), (cp*w_tot*(x3-x4) - q_rad - q_loss)/(rho*V_rad*cp)) #now state nr two is the temperature of water coming out of the house
+xdot= vertcat((cp*u3*w_tot*(x4-x1) + q_DG-q_loss)/(rho*c_dg_heatcap*cp), (cp*u4*w_tot*(t_mix_ratio-x2) -q_loss + q_BOILER)/(rho*c_dg_heatcap*cp), (cp*w_tot*(t_in_tes_ratio - x3) -q_loss)/(rho*V_tes*cp), (cp*w_tot*(x3-x4) - q_rad - q_loss)/(rho*c_dg_heatcap*cp)) #now state nr two is the temperature of water coming out of the house
 #this will depend on wht the temperature of the house and what heat the user decides to put on.....
 
 #how to make u1 be EITHER 0 or 1 depending on the objective function and constraints?????????????????
@@ -63,7 +65,7 @@ c_x1=0.0
 c_x2=0.0
 
 c_boiler=0.5
-c_co2=5.0 #seeing what the temperatures end up with now
+c_co2=0.7 #seeing what the temperatures end up with now
 #reference temperatures to ensure high enough temperature in the "house", still don't know what these bounds should be...
 x3_ref=65.0
 x1_ref=75.0

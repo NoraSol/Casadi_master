@@ -15,6 +15,7 @@ V_dg = 3000
 V_boiler = 3000
 V_rad = 3000
 V_tes = 12000  # liter
+#kilo/sec (liter/sec)
 w_tot = 500  # denne må endres til å kunne variere med tanke på pumpen, dette er jo totale gjennomstrømningen i systemet...
 q_loss = 0.1
 
