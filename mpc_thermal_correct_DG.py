@@ -20,25 +20,31 @@ u4 = MX.sym('u4') #percentage of total mass flow flowing into boiler
 u= vertcat(u1,u2,u3,u4)
 
 #Parameters in my system
-cp=4.186 # Joule/(gram*degree celcius)
+cp=4.186 # Joule/(gram*degree celcius) = kJoule/kg*degree celcius
 rho=1.0  #1000 kg/m3 = 1 kg/dm3 = 1 kg/l
-c_dg_heatcap = 3000 
-c_boiler_heatcap = 3000                                                                                                                                                                                                                                     
-c_rad_heatcap=3000
+c_tes=3.0
+c_dg_heatcap = 3 #000 
+c_boiler_heatcap = 3 #000                                                                                                                                                                                                                                     
+c_rad_heatcap=3 #000
 V_tes=12000 #liter 
+V_dg= 1000
+V_boiler= 1000
+V_rad = 1000
 #the unit is kilo/sec (liter/sec)
-w_tot= 1200 # 2l/s*10min=2l/s*10*60s=1200l(kg)
+w_tot= 1200 # 2l/s*10min=2l/s*10*60s=1200l(kg)/s
 #in the last system several of the power-funtions were functions of t, how to do this descrete?
 q_loss= 0.1
 
+
+
 def q_sorad(): 
-    return 17000.0
+    return 14.0*10*60 ## to get it from minutes to seconds!!!
 q_rad=q_sorad() #defining heat being used in the house...
 
 #defining the heat that the DG returns when on (being used at 70%): 
-DG_heat = 22000.0 # kW heat
-DG_el = 140000.0 # kW power
-B_MAX_HEAT = 128000.0 #kW heat?
+DG_heat = 22.0*10*60 # kW heat kiloJoule/s ##########BECAUSE SAMPLING EVERY TEN MINUTES!
+DG_el = 140.0*10*60 # kW power
+B_MAX_HEAT = 128.0*10*60 #kW heat?
 ##########################   kontroversielt   #####################################
 #def dgq():
  #   q_dg = if_else(u3 > 0.0, u1 * DG_heat, 0)
@@ -54,13 +60,11 @@ q_BOILER= u2*B_MAX_HEAT
 
 t_mix_ratio = u3*x1 + x4*(1-u3)
 t_in_tes_ratio = u4*x2 + t_mix_ratio*(1-u4) #viktig at det ikke bare er x1(1-u4)
-xdot= vertcat((cp*u3*w_tot*(x4-x1) + q_DG-q_loss)/(rho*c_dg_heatcap*cp), (cp*u4*w_tot*(t_mix_ratio-x2) -q_loss + q_BOILER)/(rho*c_dg_heatcap*cp), (cp*w_tot*(t_in_tes_ratio - x3) -q_loss)/(rho*V_tes*cp), (cp*w_tot*(x3-x4) - q_rad - q_loss)/(rho*c_dg_heatcap*cp)) #now state nr two is the temperature of water coming out of the house
+xdot= vertcat((cp*u3*w_tot*(x4-x1) + q_DG-q_loss)/(rho*c_dg_heatcap*V_dg), (cp*u4*w_tot*(t_mix_ratio-x2) -q_loss + q_BOILER)/(rho*c_dg_heatcap*V_boiler), (cp*w_tot*(t_in_tes_ratio - x3) -q_loss)/(rho*V_tes*c_tes), (cp*w_tot*(x3-x4) - q_rad - q_loss)/(rho*c_dg_heatcap*V_rad)) #now state nr two is the temperature of water coming out of the house
 #this will depend on wht the temperature of the house and what heat the user decides to put on.....
 
-#how to make u1 be EITHER 0 or 1 depending on the objective function and constraints?????????????????
-
-#when c_h=0: seeing if the
-c_X3=20.5 #weighing of the different components of the objective function...
+#weighing of the different components of the objective function...
+c_X3=20.5 
 c_x1=0.0
 c_x2=0.0
 

@@ -10,24 +10,28 @@ x = vertcat(x1, x2, x3, x4)
 
 # Parameters in my system
 cp = 4.186
+c_tes=3.0
+c_dg_heatcap = 3 #000 
+c_boiler_heatcap = 3 #000                                                                                                                                                                                                                                     
+c_rad_heatcap=3 #000
 rho = 1.0
-V_dg = 3000
-V_boiler = 3000
-V_rad = 3000
+V_dg = 1000
+V_boiler = 1000
+V_rad = 1000
 V_tes = 12000  # liter
 #kilo/sec (liter/sec)
-w_tot = 500  # denne må endres til å kunne variere med tanke på pumpen, dette er jo totale gjennomstrømningen i systemet...
+w_tot = 1200  # denne må endres til å kunne variere med tanke på pumpen, dette er jo totale gjennomstrømningen i systemet...
 q_loss = 0.1
 
 def q_sorad():
-    return 17000.0
+    return 14.0*10*60 
 
 q_rad = q_sorad()
 
 # defining the heat that the DG returns when on (being used at 70%):
-DG_heat = 22000.0  # kW heat
-DG_el = 140000.0  # kW power
-B_MAX_HEAT = 128000.0  # kW heat?
+DG_heat = 22.0*10*60 # kW heat kiloJoule/s ##########BECAUSE SAMPLING EVERY TEN MINUTES!
+DG_el = 140.0*10*60 # kW power
+B_MAX_HEAT = 128.0*10*60 #kW heat?
 #now the u's are constant!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 u1 = 0.15
 u2 = 0.15
@@ -39,17 +43,17 @@ t_mix_ratio = u3 * x1 + x4 * (1 - u3)
 t_in_tes_ratio = u4 * x2 + t_mix_ratio * (1 - u4)
 
 # Defining xdot
-xdot = vertcat((cp * u3 * w_tot * (x4 - x1) + q_DG - q_loss) / (rho * V_dg * cp),
-               (cp * u4 * w_tot * (t_mix_ratio - x2) - q_loss + q_BOILER) / (rho * V_boiler * cp),
-               (cp * w_tot * (t_in_tes_ratio - x3) - q_loss) / (rho * V_tes * cp),
-               (cp * w_tot * (x3 - x4) - q_rad - q_loss) / (rho * V_rad * cp))
+xdot = vertcat((cp * u3 * w_tot * (x4 - x1) + q_DG - q_loss) / (rho * V_dg * c_dg_heatcap),
+               (cp * u4 * w_tot * (t_mix_ratio - x2) - q_loss + q_BOILER) / (rho * V_boiler * c_boiler_heatcap),
+               (cp * w_tot * (t_in_tes_ratio - x3) - q_loss) / (rho * V_tes * c_tes),
+               (cp * w_tot * (x3 - x4) - q_rad - q_loss) / (rho * V_rad * c_rad_heatcap))
 
 # Define initial conditions
-x0_init = [62.0, 62.0, 62.0, 62.0]
+x0_init = [70.0, 68.0, 62.0, 62.0]
 
 # Time parameters
-T = 25  # Total time
-N = 100  # Number of time steps
+T = 24  # Total time
+N = 144  # Number of time steps
 dt = T / N  # Time step size
 
 # Initializing lists to store states and time
