@@ -117,6 +117,8 @@ w=[]
 w0 = []
 lbw = []
 ubw = []
+#to use mixed integer optimization:
+discrete=[]
 J = 0
 g=[]
 lbg = []
@@ -130,6 +132,7 @@ w += [Xk]
 lbw +=[62.0, 62, 62.0, 62.0 ]
 ubw += [62.0, 62, 62.0, 62.0 ]
 w0 += [62.0, 62, 62.0, 62.0 ] #her begynner casaadi å søke, må være feasible!!!!, ikke del på null
+discrete+=[False,False,False,False]
 
 # Formulate the NLP
 for k in range(N):
@@ -138,8 +141,8 @@ for k in range(N):
     w   += [Uk]
     lbw += [0,0,0,0] #dette er grensene for u (here it is taken into account that there ar 4 u's)
     ubw += [1,1,1,1] #w er decision variable, xuuuxuxuxu #trying to see if u gets bigger now
-    
     w0  += [0,0,0,0]
+    discrete+= [True,False,False,False]
 
     # Integrate till the end of the interval
     Fk = F(x0=Xk, p=Uk) #x-en på slutt av første intervalll
@@ -154,6 +157,8 @@ for k in range(N):
     lbw += [40.0, 40.0, 40.0, 30.0 ] # temperatur av TES skal eeeeeeeeegt ikke gå lavere enn 65 men tester dette....
     ubw += [90.0, 90.0, 90.0, 90.0 ]
     w0 += [62.0, 62, 62.0, 62.0 ]  #endret her til 78 på dg
+    #tror denne gir riktig lengde!
+    discrete+=[False,False,False,False]
   
     # Add equality constraint
     g   += [Xk_end-Xk] #blå minus rød fra video, multiple shoot constrainten!!! bruker g for vanlige constraints også
@@ -163,7 +168,12 @@ for k in range(N):
 
 # Create an NLP solver
 prob = {'f': J, 'x': vertcat(*w), 'g': vertcat(*g)} #kom tilbake til parametere som varierer, om de inngår i difflikningene
-solver = nlpsol('solver', 'ipopt', prob);
+solver = nlpsol('solver', 'bonmin', prob,{"discrete": discrete});
+#Dette er fra Bonmin-eksempelet:::
+#nlp_prob = {'f': J, 'x': w, 'g': g}
+#nlp_solver = nlpsol('nlp_solver', 'bonmin', nlp_prob, {"discrete": discrete});
+#sol = nlp_solver(x0=vertcat(*w0), lbx=lbw, ubx=ubw, lbg=lbg, ubg=ubg)
+
 
 # Solve the NLP, den initialiseres
 sol = solver(x0=w0, lbx=lbw, ubx=ubw, lbg=lbg, ubg=ubg)
