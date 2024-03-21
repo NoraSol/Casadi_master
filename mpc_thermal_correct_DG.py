@@ -3,8 +3,8 @@ from casadi import *
 # You could for instance use the electric boiler and assume a cost for electricity? 
 #Then it is very likely (depending on the cost) that either the DG or the EB is preferred based on cost
 
-T = 24.0 #changing from 10 to 24 hours to be "realistic"#10. # Time horizon
-N = 144 # number of control intervals
+T = 24.0*60*60 #changing from 10 to 24 hours to be "realistic"#10. # Time horizon
+N = 144 # number of control intervals ten minutes in hourform
 
 
 # Declare model variables
@@ -23,44 +23,38 @@ u= vertcat(u1,u2,u3,u4)
 cp=4.186 # Joule/(gram*degree celcius) = kJoule/kg*degree celcius
 rho=1.0  #1000 kg/m3 = 1 kg/dm3 = 1 kg/l
 c_tes=3.0
-c_dg_heatcap = 3 #000 
-c_boiler_heatcap = 3 #000                                                                                                                                                                                                                                     
+c_dg_heatcap = 2000 #000 
+c_boiler_heatcap = 2000 #000                                                                                                                                                                                                                                     
 c_rad_heatcap=3 #000
 V_tes=12000 #liter 
-V_dg= 1000
-V_boiler= 1000
+V_dg= 1
+V_boiler= 1
 V_rad = 1000
 #the unit is kilo/sec (liter/sec)
-w_tot= 1200 # 2l/s*10min=2l/s*10*60s=1200l(kg)/s
+w_tot= 2 # 2l/s
 #in the last system several of the power-funtions were functions of t, how to do this descrete?
 q_loss= 0.1
 
 
 
 def q_sorad(): 
-    return 14.0*10*60 ## to get it from minutes to seconds!!!
+    return 14.0 ## to get it from minutes to seconds!!!
 q_rad=q_sorad() #defining heat being used in the house...
 
 #defining the heat that the DG returns when on (being used at 70%): 
-DG_heat = 22.0*10*60 # kW heat kiloJoule/s ##########BECAUSE SAMPLING EVERY TEN MINUTES!
-DG_el = 140.0*10*60 # kW power
-B_MAX_HEAT = 128.0*10*60 #kW heat?
-##########################   kontroversielt   #####################################
-#def dgq():
- #   q_dg = if_else(u3 > 0.0, u1 * DG_heat, 0)
-  #  return q_dg
-#q_DG= dgq()
-#def boilerq():
- #   q_boiler= if_else(u4 > 0.0, u2*B_MAX_HEAT,0)
-  #  return q_boiler
-#q_BOILER= boilerq()
-#######################   kontroversielt   ###################################
+DG_heat = 22.0 # kW heat kiloJoule/s ##########BECAUSE SAMPLING EVERY TEN MINUTES!
+DG_el = 140.0 # kW power
+B_MAX_HEAT = 128.0#kW heat?
+
 q_DG= u1*DG_heat
 q_BOILER= u2*B_MAX_HEAT
 
 t_mix_ratio = u3*x1 + x4*(1-u3)
 t_in_tes_ratio = u4*x2 + t_mix_ratio*(1-u4) #viktig at det ikke bare er x1(1-u4)
-xdot= vertcat((cp*u3*w_tot*(x4-x1) + q_DG-q_loss)/(rho*c_dg_heatcap*V_dg), (cp*u4*w_tot*(t_mix_ratio-x2) -q_loss + q_BOILER)/(rho*c_dg_heatcap*V_boiler), (cp*w_tot*(t_in_tes_ratio - x3) -q_loss)/(rho*V_tes*c_tes), (cp*w_tot*(x3-x4) - q_rad - q_loss)/(rho*c_dg_heatcap*V_rad)) #now state nr two is the temperature of water coming out of the house
+xdot= vertcat((cp*u3*w_tot*(x4-x1)*90 + q_DG-q_loss)/(rho*c_dg_heatcap*V_dg*90),
+               (cp*u4*w_tot*(t_mix_ratio-x2)*90 -q_loss + q_BOILER)/(rho*c_dg_heatcap*V_boiler*90),
+                  (cp*w_tot*(t_in_tes_ratio - x3)*90 -q_loss)/(rho*V_tes*c_tes*90),
+                   (cp*w_tot*(x3-x4)*90 - q_rad - q_loss)/(rho*c_dg_heatcap*V_rad*90)) #now state nr two is the temperature of water coming out of the house
 #this will depend on wht the temperature of the house and what heat the user decides to put on.....
 
 #weighing of the different components of the objective function...
@@ -68,16 +62,16 @@ c_X3=20.5
 c_x1=0.0
 c_x2=0.0
 
-c_boiler=7.0
-c_co2=0.5 #seeing what the temperatures end up with now
+c_boiler=0.01
+c_co2=0.01 #seeing what the temperatures end up with now
 #reference temperatures to ensure high enough temperature in the "house", still don't know what these bounds should be...
-x3_ref=65.0
-x1_ref=75.0
-x2_ref=75.0
+x3_ref=65.0/90
+x1_ref=75.0/90
+x2_ref=75.0/90
 
 
 # Objective term -> uttrykk for cost-funksjon
-L= u1**2*c_co2  + c_X3*(x3-x3_ref)**2 + c_boiler*u2**2  + c_x1*(x1-x1_ref)**2 + c_x2*(x2-x2_ref)**2  + u3**2*c_co2 + u4**2*c_boiler
+L= u1**2*c_co2  + c_X3*(x3-x3_ref)**2 + c_boiler*u2**2  + c_x1*(x1-x1_ref)**2 + c_x2*(x2-x2_ref)**2  #+ u3**2*c_co2 + u4**2*c_boiler
 #-u3**2 -u4**2# u3 og u4 er for å se om det går noenting gjennom der nå...
 #here in the objective function, the usage of the DG and boiler is punished, but not the water flowing through
 #I think this makes sense, but might need to be looked at...
@@ -107,7 +101,7 @@ else:
    F = Function('F', [X0, U], [X, Q],['x0','p'],['xf','qf']) #xf: x final, Qf : final cost, F er integralet av f
 
 # Evaluate at a test point
-Fk = F(x0=[62.0, 62, 62.0, 62.0 ],p=0.4) #tror dette er startpunkt men må sjekke ut?
+Fk = F(x0=[62.0/90, 62.0/90, 62.0/90, 62.0/90 ],p=0.4) #tror dette er startpunkt men må sjekke ut?
 #Fk = F(x0=[0.2,0.3,],p=0.4)
 print(Fk['xf'])
 print(Fk['qf'])
@@ -127,9 +121,9 @@ ubg = []
 Xk = MX.sym('X0', 4) #changed to three since we now have three x-es!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 w += [Xk]
 #lbw += [67.0, 66.5, 66.0, 53.0 ]  #init conditions!!!!!!!!!!!!!!
-lbw +=[62.0, 62, 62.0, 62.0 ]
-ubw += [62.0, 62, 62.0, 62.0 ]
-w0 += [62.0, 62, 62.0, 62.0 ] #her begynner casaadi å søke, må være feasible!!!!, ikke del på null
+lbw +=[62.0/90, 62/90, 62.0/90, 62.0/90 ]
+ubw += [62.0/90, 62/90, 62.0/90, 62.0/90 ]
+w0 += [62.0/90, 62.0/90, 62.0/90, 62.0/90 ] #her begynner casaadi å søke, må være feasible!!!!, ikke del på null
 
 # Formulate the NLP
 for k in range(N):
@@ -151,9 +145,9 @@ for k in range(N):
     w   += [Xk]
     
     #changed now to have more realistic limits, let's see!!
-    lbw += [40.0, 40.0, 40.0, 30.0 ] # temperatur av TES skal eeeeeeeeegt ikke gå lavere enn 65 men tester dette....
-    ubw += [90.0, 90.0, 90.0, 90.0 ]
-    w0 += [62.0, 62, 62.0, 62.0 ]  #endret her til 78 på dg
+    lbw += [40.0/90, 40.0/90, 40.0/90, 30.0/90 ] # temperatur av TES skal eeeeeeeeegt ikke gå lavere enn 65 men tester dette....
+    ubw += [90.0/90, 90.0/90, 90.0/90, 90.0/90 ]
+    w0 += [62.0/90, 62.0/90, 62.0/90, 62.0/90 ]  #endret her til 78 på dg
   
     # Add equality constraint
     g   += [Xk_end-Xk] #blå minus rød fra video, multiple shoot constrainten!!! bruker g for vanlige constraints også
@@ -185,10 +179,10 @@ tgrid = [T/N*k for k in range(N+1)]
 import matplotlib.pyplot as plt
 plt.figure(1)
 plt.clf()
-plt.plot(tgrid, x1_opt, '--')
-plt.plot(tgrid, x2_opt, '-')
-plt.plot(tgrid,x3_opt, '.')
-plt.plot(tgrid,x4_opt, '.-')
+plt.plot(tgrid, x1_opt*90, '--')
+plt.plot(tgrid, x2_opt*90, '-')
+plt.plot(tgrid,x3_opt*90, '.')
+plt.plot(tgrid,x4_opt*90, '.-')
 plt.xlabel('t')
 plt.legend(['x1:temp water dg','x2:temp water boiler','x3:temp water tes','x4:temp water ahouse'])
 #prøver å få det til to plots, let's see ...
