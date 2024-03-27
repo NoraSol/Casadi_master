@@ -3,6 +3,7 @@ from casadi import *
 # You could for instance use the electric boiler and assume a cost for electricity? 
 #Then it is very likely (depending on the cost) that either the DG or the EB is preferred based on cost
 
+import numpy as np
 T = 24.0*60*60 #changing from 10 to 24 hours to be "realistic"#10. # Time horizon
 N = 144 # number of control intervals ten minutes in hourform
 
@@ -158,21 +159,21 @@ state_results = []
 control_results = []
 final_state_results = []
 #initializing the first u_guesses and x_guesses
-u_guess = np.array([0.0, 0.0,0.0,0.0] * N).reshape(-1, 2)
-x_guess = np.zeros((4, N + 1)) #4 is for the four states in the system...
+num_controls = 4
+num_states = 4
+u_guess = np.array(w0[: num_controls * N]).reshape(N, num_controls).T
+x_guess = np.array(w0[num_controls * N :]).reshape(N + 1, num_states).T
+
 
 # Solve the NLP
 for i in range(N):
-    init_opt_state = np.concatenate(
+    w0=np.concatenate(
             (u_guess.T.reshape(-1, 1), x_guess.T.reshape(-1, 1))
         )
     #here the xo etc has to be redifined based on the solution
-    sol = solver(x0=init_opt_state, lbx=lbw, ubx=ubw, lbg=lbg, ubg=ubg) #I think the lbx etc stays the same?
+    sol = solver(x0=w0, lbx=lbw, ubx=ubw, lbg=lbg, ubg=ubg) #I think the lbx etc stays the same?
     w_opt = sol['x'].full().flatten()
-    num_controls = 4
-    #x_guess er x-elementene av w_opt, og u_guess er u-elementene av w_opt
-    # Define the number of state variables
-    num_states = 4
+   
     # Extract state variables from w_opt
     u_guess = w_opt[: num_controls * N].reshape(N, num_controls).T
     x_guess = w_opt[num_controls * N :].reshape(N + 1, num_states).T
@@ -191,6 +192,7 @@ for i in range(N):
 #u3_opt = w_opt[6::8]
 #u4_opt = w_opt[7::8]
 #new definition after the second for-loop_
+    #Now I'm trying something new to get the right dimensions: full().flatten()
 x1_opt = final_state_results[0::4]
 x2_opt = final_state_results[1::4]
 x3_opt = final_state_results[2::4]
@@ -200,8 +202,15 @@ u2_opt = control_results[2::4]
 u3_opt = control_results[3::4]
 u4_opt = control_results[4::4]
 
+#tgrid = [3240*4] #12960 hehe
+#tgrid = [T/N*k for k in range(N+1)]
+tgrid = [T/N*k for k in range(N +1)]
+print("x1 len: ", x1_opt.__len__())
+print("x2 len: ", x2_opt.__len__())
+print("u1 len: ", u1_opt.__len__())
+print("u2 len: ", u2_opt.__len__())
+print("tgrid len: ", tgrid.__len__())
 
-tgrid = [T/N*k for k in range(N+1)]
 
 #Biiiig question, is the function for parameters and the rk4 function supposed to be called several times? In that case, where?
 import matplotlib.pyplot as plt
@@ -215,11 +224,38 @@ plt.xlabel('t')
 plt.legend(['x1:temp water dg','x2:temp water boiler','x3:temp water tes','x4:temp water ahouse'])
 #prøver å få det til to plots, let's see ...
 plt.figure(2)
-plt.step(tgrid, vertcat(DM.nan(1), u1_opt), '-.') #her i plottingen kan det være vanskelig å få det riktig hmmmm....
-plt.step(tgrid, vertcat(DM.nan(1), u2_opt), '-.') #prøver å få plotta alle u-ene, får se hva som skjer...
-plt.step(tgrid, vertcat(DM.nan(1), u3_opt), '-.')
-plt.step(tgrid, vertcat(DM.nan(1), u4_opt), '-.')
+
+# Convert CasADi DM arrays to numpy arrays
+u1_opt_np = np.array(u1_opt)
+u2_opt_np = np.array(u2_opt)
+u3_opt_np = np.array(u3_opt)
+u4_opt_np = np.array(u4_opt)
+
+# Plotting
+plt.figure(2)
+plt.step(tgrid, np.concatenate([[np.nan] for _ in range(len(tgrid))]), '--')  # Add NaN values with the same length as u1_opt_np
+plt.step(tgrid, u1_opt_np[:, 0], '.-')
+plt.step(tgrid, np.concatenate([[np.nan] for _ in range(len(tgrid))]), '-.')  # Add NaN values with the same length as u2_opt_np
+plt.step(tgrid, u2_opt_np[:, 0], '--')
+plt.step(tgrid, np.concatenate([[np.nan] for _ in range(len(tgrid))]), '..')  # Add NaN values with the same length as u3_opt_np
+plt.step(tgrid, u3_opt_np[:, 0], '..')
+plt.step(tgrid, np.concatenate([[np.nan] for _ in range(len(tgrid))]), '.--.')  # Add NaN values with the same length as u4_opt_np
+plt.step(tgrid, u4_opt_np[:, 0], '.--.')
+
+#plt.step(tgrid, np.concatenate([[np.nan], u1_opt_np]), '-.')
+#plt.step(tgrid, np.concatenate([[np.nan], u2_opt_np]), '-.')
+#plt.step(tgrid, np.concatenate([[np.nan], u3_opt_np]), '-.')
+#plt.step(tgrid, np.concatenate([[np.nan], u4_opt_np]), '-.')
 plt.xlabel('t')
 plt.legend(['u1:power_%_DG','u2:power_%_boiler','u3:%_mass_flow_DG','u4:%_mass_flow_boiler'])
 plt.grid()
 plt.show()
+
+#plt.step(tgrid, vertcat(DM.nan(1), u1_opt), '-.') #her i plottingen kan det være vanskelig å få det riktig hmmmm....
+#plt.step(tgrid, vertcat(DM.nan(1), u2_opt), '-.') #prøver å få plotta alle u-ene, får se hva som skjer...
+#plt.step(tgrid, vertcat(DM.nan(1), u3_opt), '-.')
+#plt.step(tgrid, vertcat(DM.nan(1), u4_opt), '-.')
+#plt.xlabel('t')
+#plt.legend(['u1:power_%_DG','u2:power_%_boiler','u3:%_mass_flow_DG','u4:%_mass_flow_boiler'])
+#plt.grid()
+#plt.show()
