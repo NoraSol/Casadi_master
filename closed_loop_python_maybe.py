@@ -291,10 +291,10 @@ plt.figure(2)
 #plt.step(tgrid, vertcat(DM.nan(1), u2_done_np), '-.') #prøver å få plotta alle u-ene, får se hva som skjer...
 #plt.step(tgrid, vertcat(DM.nan(1), u3_done_np), '-.')
 #plt.step(tgrid, vertcat(DM.nan(1), u4_done_np), '-.')
-plt.plot(tgrid, u1_done_np*90, '--')
-plt.plot(tgrid, u2_done_np*90, '-.')
-plt.plot(tgrid, u3_done_np*90, '.')
-plt.plot(tgrid, u4_done_np*90, '-')
+plt.plot(tgrid, u1_done_np, '--') #trenger ikke å gange med 90 her da vel???
+plt.plot(tgrid, u2_done_np, '-.') # --||--
+plt.plot(tgrid, u3_done_np, '.') #--||--
+plt.plot(tgrid, u4_done_np, '-') # --||--
 plt.xlabel('t')
 plt.legend(['u1:power_%_DG','u2:power_%_boiler','u3:%_mass_flow_DG','u4:%_mass_flow_boiler'])
 plt.grid()
