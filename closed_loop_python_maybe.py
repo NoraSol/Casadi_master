@@ -161,8 +161,11 @@ final_state_results = []
 #initializing the first u_guesses and x_guesses
 num_controls = 4
 num_states = 4
+#Prøver å endre rekkefølge her fordi noe er tydeligvis feil ....
 u_guess = np.array(w0[: num_controls * N]).reshape(N, num_controls).T
 x_guess = np.array(w0[num_controls * N :]).reshape(N + 1, num_states).T
+#x_guess = np.array(w0[: num_controls * N]).reshape(N, num_controls).T
+#_guess = np.array(w0[num_controls * N :]).reshape(N + 1, num_states).T
 
 
 # Solve the NLP
@@ -175,8 +178,13 @@ for i in range(N):
     w_opt = sol['x'].full().flatten()
    
     # Extract state variables from w_opt
+    #her også må endre for tror det er feil rekkefølge mehehehe
     u_guess = w_opt[: num_controls * N].reshape(N, num_controls).T
     x_guess = w_opt[num_controls * N :].reshape(N + 1, num_states).T
+    #x_guess = w_opt[: num_controls * N].reshape(N, num_controls).T
+    #u_guess = w_opt[num_controls * N :].reshape(N + 1, num_states).T
+
+
     state_results.append(x_guess.T)
     final_state_results.append(x_guess.T[0])
     control_results.append(u_guess[:, 0])
@@ -203,11 +211,11 @@ x4_opt = final_state_results[3::4]
 x4_done= [item for sublist in x4_opt for item in sublist]
 u1_opt = control_results[0::4]
 u1_done= [item for sublist in u1_opt for item in sublist]
-u2_opt = control_results[2::4]
+u2_opt = control_results[1::4]
 u2_done= [item for sublist in u2_opt for item in sublist]
-u3_opt = control_results[3::4]
+u3_opt = control_results[2::4]
 u3_done= [item for sublist in u3_opt for item in sublist]
-u4_opt = control_results[4::4]
+u4_opt = control_results[3::4]
 u4_done= [item for sublist in u4_opt for item in sublist]
 x1_done_np = np.array(x1_done)
 x2_done_np = np.array(x2_done)
@@ -249,7 +257,7 @@ plt.plot(tgrid,x3_done_np*90, '.')
  #   plt.plot(tgrid, [x[i] for x in x4_opt])
 plt.plot(tgrid,x4_done_np*90, '.-')
 plt.xlabel('t')
-plt.legend(['x1:temp water dg'],['x2:temp water boiler'],['x3:temp water tes'],['x4:temp water ahouse'])
+plt.legend(['x1:temp water dg','x2:temp water boiler','x3:temp water tes','x4:temp water ahouse'])
 #prøver å få det til to plots, let's see ...
 plt.figure(2)
 
@@ -279,10 +287,14 @@ plt.figure(2)
 #plt.grid()
 #plt.show()
 
-plt.step(tgrid, vertcat(DM.nan(1), u1_done_np), '-.') #her i plottingen kan det være vanskelig å få det riktig hmmmm....
-plt.step(tgrid, vertcat(DM.nan(1), u2_done_np), '-.') #prøver å få plotta alle u-ene, får se hva som skjer...
-plt.step(tgrid, vertcat(DM.nan(1), u3_done_np), '-.')
-plt.step(tgrid, vertcat(DM.nan(1), u4_done_np), '-.')
+#plt.step(tgrid, vertcat(DM.nan(1), u1_done_np), '-.') #her i plottingen kan det være vanskelig å få det riktig hmmmm....
+#plt.step(tgrid, vertcat(DM.nan(1), u2_done_np), '-.') #prøver å få plotta alle u-ene, får se hva som skjer...
+#plt.step(tgrid, vertcat(DM.nan(1), u3_done_np), '-.')
+#plt.step(tgrid, vertcat(DM.nan(1), u4_done_np), '-.')
+plt.plot(tgrid, u1_done_np*90, '--')
+plt.plot(tgrid, u2_done_np*90, '-.')
+plt.plot(tgrid, u3_done_np*90, '.')
+plt.plot(tgrid, u4_done_np*90, '-')
 plt.xlabel('t')
 plt.legend(['u1:power_%_DG','u2:power_%_boiler','u3:%_mass_flow_DG','u4:%_mass_flow_boiler'])
 plt.grid()
