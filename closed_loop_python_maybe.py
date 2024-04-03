@@ -194,17 +194,37 @@ for i in range(N):
 #new definition after the second for-loop_
     #Now I'm trying something new to get the right dimensions: full().flatten()
 x1_opt = final_state_results[0::4]
+x1_done= [item for sublist in x1_opt for item in sublist]
 x2_opt = final_state_results[1::4]
+x2_done= [item for sublist in x2_opt for item in sublist]
 x3_opt = final_state_results[2::4]
+x3_done= [item for sublist in x3_opt for item in sublist]
 x4_opt = final_state_results[3::4]
+x4_done= [item for sublist in x4_opt for item in sublist]
 u1_opt = control_results[0::4]
+u1_done= [item for sublist in u1_opt for item in sublist]
 u2_opt = control_results[2::4]
+u2_done= [item for sublist in u2_opt for item in sublist]
 u3_opt = control_results[3::4]
+u3_done= [item for sublist in u3_opt for item in sublist]
 u4_opt = control_results[4::4]
+u4_done= [item for sublist in u4_opt for item in sublist]
+x1_done_np = np.array(x1_done)
+x2_done_np = np.array(x2_done)
+x3_done_np = np.array(x3_done)
+x4_done_np = np.array(x4_done)
+u1_done_np = np.array(u1_done)
+u2_done_np = np.array(u2_done)
+u3_done_np = np.array(u3_done)
+u4_done_np = np.array(u4_done)
+
 
 #tgrid = [3240*4] #12960 hehe
 #tgrid = [T/N*k for k in range(N+1)]
-tgrid = [T/N*k for k in range(N +1)]
+tgrid = [T/N*k for k in range(N)]
+print("x1 opt selve greia faen: ", x1_done)
+print("u1 hele greia helvette: ", u1_done)
+print("tgrid for å se hve den består av meh: ", tgrid)
 print("x1 len: ", x1_opt.__len__())
 print("x2 len: ", x2_opt.__len__())
 print("u1 len: ", u1_opt.__len__())
@@ -216,46 +236,54 @@ print("tgrid len: ", tgrid.__len__())
 import matplotlib.pyplot as plt
 plt.figure(1)
 plt.clf()
-plt.plot(tgrid, x1_opt*90, '--')
-plt.plot(tgrid, x2_opt*90, '-')
-plt.plot(tgrid,x3_opt*90, '.')
-plt.plot(tgrid,x4_opt*90, '.-')
+#for i in range(4):
+#    plt.plot(tgrid, [x[i] for x in x1_opt])
+plt.plot(tgrid, x1_done_np*90, '--')
+#for i in range(4):
+ #   plt.plot(tgrid, [x[i] for x in x2_opt])    
+plt.plot(tgrid, x2_done_np*90, '-')
+#for i in range(4):
+ #   plt.plot(tgrid, [x[i] for x in x3_opt])
+plt.plot(tgrid,x3_done_np*90, '.')
+#for i in range(4):
+ #   plt.plot(tgrid, [x[i] for x in x4_opt])
+plt.plot(tgrid,x4_done_np*90, '.-')
 plt.xlabel('t')
-plt.legend(['x1:temp water dg','x2:temp water boiler','x3:temp water tes','x4:temp water ahouse'])
+plt.legend(['x1:temp water dg'],['x2:temp water boiler'],['x3:temp water tes'],['x4:temp water ahouse'])
 #prøver å få det til to plots, let's see ...
 plt.figure(2)
 
 # Convert CasADi DM arrays to numpy arrays
-u1_opt_np = np.array(u1_opt)
-u2_opt_np = np.array(u2_opt)
-u3_opt_np = np.array(u3_opt)
-u4_opt_np = np.array(u4_opt)
+#u1_opt_np = np.array(u1_opt)
+#u2_opt_np = np.array(u2_opt)
+#u3_opt_np = np.array(u3_opt)
+#u4_opt_np = np.array(u4_opt)
 
 # Plotting
 plt.figure(2)
-plt.step(tgrid, np.concatenate([[np.nan] for _ in range(len(tgrid))]), '--')  # Add NaN values with the same length as u1_opt_np
-plt.step(tgrid, u1_opt_np[:, 0], '.-')
-plt.step(tgrid, np.concatenate([[np.nan] for _ in range(len(tgrid))]), '-.')  # Add NaN values with the same length as u2_opt_np
-plt.step(tgrid, u2_opt_np[:, 0], '--')
-plt.step(tgrid, np.concatenate([[np.nan] for _ in range(len(tgrid))]), '..')  # Add NaN values with the same length as u3_opt_np
-plt.step(tgrid, u3_opt_np[:, 0], '..')
-plt.step(tgrid, np.concatenate([[np.nan] for _ in range(len(tgrid))]), '.--.')  # Add NaN values with the same length as u4_opt_np
-plt.step(tgrid, u4_opt_np[:, 0], '.--.')
+#plt.step(tgrid, np.concatenate([[np.nan] for _ in range(len(tgrid))]), '--')  # Add NaN values with the same length as u1_opt_np
+#plt.step(tgrid, u1_opt_np[:, 0], '.-')
+#plt.step(tgrid, np.concatenate([[np.nan] for _ in range(len(tgrid))]), '-.')  # Add NaN values with the same length as u2_opt_np
+#plt.step(tgrid, u2_opt_np[:, 0], '--')
+#plt.step(tgrid, np.concatenate([[np.nan] for _ in range(len(tgrid))]), '..')  # Add NaN values with the same length as u3_opt_np
+#plt.step(tgrid, u3_opt_np[:, 0], '..')
+#plt.step(tgrid, np.concatenate([[np.nan] for _ in range(len(tgrid))]), '.--.')  # Add NaN values with the same length as u4_opt_np
+#plt.step(tgrid, u4_opt_np[:, 0], '.--.')
 
 #plt.step(tgrid, np.concatenate([[np.nan], u1_opt_np]), '-.')
 #plt.step(tgrid, np.concatenate([[np.nan], u2_opt_np]), '-.')
 #plt.step(tgrid, np.concatenate([[np.nan], u3_opt_np]), '-.')
 #plt.step(tgrid, np.concatenate([[np.nan], u4_opt_np]), '-.')
-plt.xlabel('t')
-plt.legend(['u1:power_%_DG','u2:power_%_boiler','u3:%_mass_flow_DG','u4:%_mass_flow_boiler'])
-plt.grid()
-plt.show()
-
-#plt.step(tgrid, vertcat(DM.nan(1), u1_opt), '-.') #her i plottingen kan det være vanskelig å få det riktig hmmmm....
-#plt.step(tgrid, vertcat(DM.nan(1), u2_opt), '-.') #prøver å få plotta alle u-ene, får se hva som skjer...
-#plt.step(tgrid, vertcat(DM.nan(1), u3_opt), '-.')
-#plt.step(tgrid, vertcat(DM.nan(1), u4_opt), '-.')
 #plt.xlabel('t')
 #plt.legend(['u1:power_%_DG','u2:power_%_boiler','u3:%_mass_flow_DG','u4:%_mass_flow_boiler'])
 #plt.grid()
 #plt.show()
+
+plt.step(tgrid, vertcat(DM.nan(1), u1_done_np), '-.') #her i plottingen kan det være vanskelig å få det riktig hmmmm....
+plt.step(tgrid, vertcat(DM.nan(1), u2_done_np), '-.') #prøver å få plotta alle u-ene, får se hva som skjer...
+plt.step(tgrid, vertcat(DM.nan(1), u3_done_np), '-.')
+plt.step(tgrid, vertcat(DM.nan(1), u4_done_np), '-.')
+plt.xlabel('t')
+plt.legend(['u1:power_%_DG','u2:power_%_boiler','u3:%_mass_flow_DG','u4:%_mass_flow_boiler'])
+plt.grid()
+plt.show()
