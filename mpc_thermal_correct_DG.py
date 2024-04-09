@@ -175,23 +175,26 @@ u4_opt = w_opt[7::8]
 
 
 tgrid = [T/N*k for k in range(N+1)]
+t_values = np.linspace(0, T, N+1)  # Adjusted initialization
 
 import matplotlib.pyplot as plt
 plt.figure(1)
 plt.clf()
-plt.plot(tgrid, x1_opt*90, '--')
-plt.plot(tgrid, x2_opt*90, '-')
-plt.plot(tgrid,x3_opt*90, '.')
-plt.plot(tgrid,x4_opt*90, '.-')
-plt.xlabel('t')
+plt.plot(t_values/(60*60), x1_opt*90, '--')
+plt.plot(t_values/(60*60), x2_opt*90, '-')
+plt.plot(t_values/(60*60),x3_opt*90, '.')
+plt.plot(t_values/(60*60),x4_opt*90, '.-')
+plt.ylabel('Temperature degrees celcius')
+plt.xlabel('T: hours')
 plt.legend(['x1:temp water dg','x2:temp water boiler','x3:temp water tes','x4:temp water ahouse'])
 #prøver å få det til to plots, let's see ...
 plt.figure(2)
-plt.step(tgrid, vertcat(DM.nan(1), u1_opt), '-.') #her i plottingen kan det være vanskelig å få det riktig hmmmm....
-plt.step(tgrid, vertcat(DM.nan(1), u2_opt), '-.') #prøver å få plotta alle u-ene, får se hva som skjer...
-plt.step(tgrid, vertcat(DM.nan(1), u3_opt), '-.')
-plt.step(tgrid, vertcat(DM.nan(1), u4_opt), '-.')
-plt.xlabel('t')
+plt.step(t_values/(60*60), vertcat(DM.nan(1), u1_opt), '-.') #her i plottingen kan det være vanskelig å få det riktig hmmmm....
+plt.step(t_values/(60*60), vertcat(DM.nan(1), u2_opt), '-.') #prøver å få plotta alle u-ene, får se hva som skjer...
+plt.step(t_values/(60*60), vertcat(DM.nan(1), u3_opt), '-.')
+plt.step(t_values/(60*60), vertcat(DM.nan(1), u4_opt), '-.')
+plt.ylabel('Percentage')
+plt.xlabel('T: hours')
 plt.legend(['u1:power_%_DG','u2:power_%_boiler','u3:%_mass_flow_DG','u4:%_mass_flow_boiler'])
 plt.grid()
 plt.show()

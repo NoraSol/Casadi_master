@@ -20,6 +20,9 @@ u3 = MX.sym('u3') #percentage of total mass flow flowing into DG
 u4 = MX.sym('u4') #percentage of total mass flow flowing into boiler
 u= vertcat(u1,u2,u3,u4)
 
+
+   
+
 def params_xdot():
     #Parameters in my system
     cp=4.186 # Joule/(gram*degree celcius) = kJoule/kg*degree celcius
@@ -84,6 +87,11 @@ def rk4():
        Q = Q + DT/6*(k1_q + 2*k2_q + 2*k3_q + k4_q)
    F = Function('F', [X0, U], [X, Q],['x0','p'],['xf','qf']) #xf: x final, Qf : final cost, F er integralet av f
    return F
+def plant(x0,u_current):
+   F_next=rk4()
+   F_new=F_next(x0=x0,p=[u_current]) #should not have to do the brackets for p
+   return F_new
+
 
 # Formulate discrete time dynamics|
 if False:
@@ -94,12 +102,10 @@ else:
   F=rk4()
 
 # Evaluate at a test point
-Fk = F(x0=[62.0/90, 62.0/90, 62.0/90, 62.0/90 ],p=0.4) #tror dette er startpunkt men må sjekke ut?
+Fk = F(x0=[62.0/90, 62.0/90, 62.0/90, 62.0/90 ],p=[0.2,0.2,0.2,0.2]) #tror dette er startpunkt men må sjekke ut?
 #Fk = F(x0=[0.2,0.3,],p=0.4)
 print(Fk['xf'])
 print(Fk['qf'])
-
-# Start with an empty NLP, initialiserer et tom nlp for å bruke multiple shooting
 w=[]
 w0 = []
 lbw = []
@@ -113,42 +119,53 @@ ubg = []
 #lb og ub er det samme
 Xk = MX.sym('X0', 4) #changed to three since we now have three x-es!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 w += [Xk]
+
 #init conditions!!!!!!!!!!!!!!
-lbw +=[62.0/90, 62/90, 62.0/90, 62.0/90 ]
-ubw += [62.0/90, 62/90, 62.0/90, 62.0/90 ]
-w0 += [62.0/90, 62.0/90, 62.0/90, 62.0/90 ] #her begynner casaadi å søke, må være feasible!!!!, ikke del på null
+x0_init=[62.0/90,62.0/90,62.0/90,62.0/90]
+
+lbw +=x0_init
+ubw += x0_init
+w0 += x0_init #her begynner casaadi å søke, må være feasible!!!!, ikke del på null
 
 # Formulate the NLP
-for k in range(N):
-    # New NLP variable for the control
-    Uk = MX.sym('U_' + str(k), 4) # have to put ,4 in this formulation????????????????????????????????????????????????????
-    w   += [Uk]
-    lbw += [0,0,0,0] #dette er grensene for u (here it is taken into account that there ar 4 u's)
-    ubw += [1,1,1,1] #w er decision variable, xuuuxuxuxu #trying to see if u gets bigger now
+def formulating(w,w0,lbw,ubw,J,g,lbg,ubg,Xk):
+    # Start with an empty NLP, initialiserer et tom nlp for å bruke multiple shooting
     
-    w0  += [0,0,0,0]
-
-    # Integrate till the end of the interval
-    Fk = F(x0=Xk, p=Uk) #x-en på slutt av første intervalll
-    Xk_end = Fk['xf']
-    J=J+Fk['qf'] #inkrementerer cost
-
-    # New NLP variable for state at end of interval
-    Xk = MX.sym('X_' + str(k+1), 4) 
-    w   += [Xk]
+    for k in range(N):
+        # New NLP variable for the control
+        Uk = MX.sym('U_' + str(k), 4) # have to put ,4 in this formulation????????????????????????????????????????????????????
+        w   += [Uk]
+        lbw += [0,0,0,0] #dette er grensene for u (here it is taken into account that there ar 4 u's)
+        ubw += [1,1,1,1] #w er decision variable, xuuuxuxuxu #trying to see if u gets bigger now
     
-    #changed now to have more realistic limits, let's see!!
-    lbw += [40.0/90, 40.0/90, 40.0/90, 30.0/90 ] # temperatur av TES skal eeeeeeeeegt ikke gå lavere enn 65 men tester dette....
-    ubw += [90.0/90, 90.0/90, 90.0/90, 90.0/90 ]
-    w0 += [62.0/90, 62.0/90, 62.0/90, 62.0/90 ]  
+        w0  += [0,0,0,0]
+
+        # Integrate till the end of the interval
+        Fk = F(x0=Xk, p=Uk) #x-en på slutt av første intervalll
+        Xk_end = Fk['xf']
+        J=J+Fk['qf'] #inkrementerer cost
+
+        # New NLP variable for state at end of interval
+        Xk = MX.sym('X_' + str(k+1), 4) 
+        w   += [Xk]
+    
+        #changed now to have more realistic limits, let's see!!
+        lbw += [40.0/90, 40.0/90, 40.0/90, 30.0/90 ] # temperatur av TES skal eeeeeeeeegt ikke gå lavere enn 65 men tester dette....
+        ubw += [90.0/90, 90.0/90, 90.0/90, 90.0/90 ]
+        w0 += [62.0/90, 62.0/90, 62.0/90, 62.0/90 ]  
   
-    # Add equality constraint
-    g   += [Xk_end-Xk] #blå minus rød fra video, multiple shoot constrainten!!! bruker g for vanlige constraints også
-    #både equality og inequality constraints havner her, om ubegrenset: upper bound uendelig for eksempel
-    lbg += [0, 0, 0, 0]
-    ubg += [0, 0, 0, 0] #changed this from [0,0,0] and it now evaluates objective function more times...
+        # Add equality constraint
+        g   += [Xk_end-Xk] #blå minus rød fra video, multiple shoot constrainten!!! bruker g for vanlige constraints også
+        #både equality og inequality constraints havner her, om ubegrenset: upper bound uendelig for eksempel
+        lbg += [0, 0, 0, 0]
+        ubg += [0, 0, 0, 0] #changed this from [0,0,0] and it now evaluates objective function more times...
+    return w,g,w0
 
-# Create an NLP solver
+    # Create an NLP solver
+w,g,w0=formulating(w,w0,lbw,ubw,J,g,lbg,ubg,Xk)
+#print("Size of w0:", len(w0))
+#print("here is the actual w0:",w0)
+
 prob = {'f': J, 'x': vertcat(*w), 'g': vertcat(*g)} #kom tilbake til parametere som varierer, om de inngår i difflikningene
 solver = nlpsol('solver', 'ipopt', prob);
 
@@ -158,21 +175,26 @@ solver = nlpsol('solver', 'ipopt', prob);
 state_results = []
 control_results = []
 final_state_results = []
+
 #initializing the first u_guesses and x_guesses
 num_controls = 4
 num_states = 4
 #Prøver å endre rekkefølge her fordi noe er tydeligvis feil ....
 u_guess = np.array(w0[: num_controls * N]).reshape(N, num_controls).T
 x_guess = np.array(w0[num_controls * N :]).reshape(N + 1, num_states).T
-#x_guess = np.array(w0[: num_controls * N]).reshape(N, num_controls).T
-#_guess = np.array(w0[num_controls * N :]).reshape(N + 1, num_states).T
+
 
 
 # Solve the NLP
 for i in range(N):
-    w0=np.concatenate(
-            (u_guess.T.reshape(-1, 1), x_guess.T.reshape(-1, 1))
-        )
+    x0=x0_init
+    lbx=x0_init
+    ubx=x0_init
+    #w=formulating(w,w0,lbw,ubw,J,g,lbg,ubg,Xk)[0]
+    #g=formulating(w,w0,lbw,ubw,J,g,lbg,ubg,Xk)[1]
+    ###NED TO CALL THE >FORMULATion of the mpc here, mip
+    #prob = {'f': J, 'x': vertcat(*w), 'g': vertcat(*g)} #kom tilbake til parametere som varierer, om de inngår i difflikningene
+    #solver = nlpsol('solver', 'ipopt', prob);
     #here the xo etc has to be redifined based on the solution
     sol = solver(x0=w0, lbx=lbw, ubx=ubw, lbg=lbg, ubg=ubg) #I think the lbx etc stays the same?
     w_opt = sol['x'].full().flatten()
@@ -186,8 +208,12 @@ for i in range(N):
 
 
     state_results.append(x_guess.T)
-    final_state_results.append(x_guess.T[0])
+    
     control_results.append(u_guess[:, 0])
+    print("Here is u_guess that is supposed to be a number i think",u_guess[:, 0])
+    plantd_next=plant(x0_init,u_guess[:, 0]) #her er feilen atm, virker som den ikke liker formatet på u_guess...
+    x0_init=plantd_next
+    final_state_results.append(x0_init)
 ########################################################################################
 
 # Plot the solution, sånn henter man ut variablene

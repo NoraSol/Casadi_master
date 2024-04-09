@@ -37,6 +37,10 @@ u1 = 0.09
 u2 = 0.097
 u3 = 0.4
 u4 = 0.4
+#u1 = 0.0
+#u2 = 0.2
+#u3 = 0.0
+#u4 = 0.2
 q_DG = u1 * DG_heat
 q_BOILER = u2 * B_MAX_HEAT
 t_mix_ratio = u3 * x1 + x4 * (1 - u3)
@@ -85,11 +89,11 @@ x_values = np.array(x_values)*90
 
 # Plotting the results
 plt.figure(figsize=(10, 6))
-plt.plot(t_values, x_values[:, 0], label='x1: Temperature in DG Water')
-plt.plot(t_values, x_values[:, 1], label='x2: Temperature in Boiler Water')
-plt.plot(t_values, x_values[:, 2], label='x3: Temperature in TES Water')
-plt.plot(t_values, x_values[:, 3], label='x4: Temperature in Water after house')
-plt.xlabel('Time')
+plt.plot(t_values/(60*60), x_values[:, 0], label='x1: Temperature in DG Water')
+plt.plot(t_values/(60*60), x_values[:, 1], label='x2: Temperature in Boiler Water')
+plt.plot(t_values/(60*60), x_values[:, 2], label='x3: Temperature in TES Water')
+plt.plot(t_values/(60*60), x_values[:, 3], label='x4: Temperature in Water after house')
+plt.xlabel('Time hours')
 plt.ylabel('Temperature (°C)')
 plt.title('Development of Temperatures Over Time')
 plt.legend()
