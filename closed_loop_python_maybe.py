@@ -87,10 +87,9 @@ def rk4():
        Q = Q + DT/6*(k1_q + 2*k2_q + 2*k3_q + k4_q)
    F = Function('F', [X0, U], [X, Q],['x0','p'],['xf','qf']) #xf: x final, Qf : final cost, F er integralet av f
    return F
-def plant(x0,u_current):
-   F_next=rk4()
-   F_new=F_next(x0=x0,p=u_current) #should not have to do the brackets for p
-   return F_new
+def plant(x0,u_current, F):
+   F_new=F(x0=x0,p=u_current) #should not have to do the brackets for p
+   return F_new["xf"]
 
 
 # Formulate discrete time dynamics|
@@ -215,8 +214,8 @@ for i in range(N):
     
     #x0_init_casadi = ca.MX(x0_init)
     #u_guess_casadi = ca.MX(u_guess)
-    plantd_next=plant(x0_init['xf'],u_guess[:, 0]) 
-    x0_init=plantd_next
+    plantd_next=plant(x0_init,u_guess[:, 0], F)
+    x0_init=np.array(plantd_next).flatten()
     final_state_results.append(x0_init)
 ########################################################################################
 
