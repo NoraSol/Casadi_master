@@ -2,7 +2,7 @@ from casadi import *
 #To do: how to get the electric boilers implemented in just the thermal system now??? ->
 # You could for instance use the electric boiler and assume a cost for electricity? 
 #Then it is very likely (depending on the cost) that either the DG or the EB is preferred based on cost
-
+import casadi as ca
 import numpy as np
 T = 24.0*60*60 #changing from 10 to 24 hours to be "realistic"#10. # Time horizon
 N = 144 # number of control intervals ten minutes in hourform
@@ -89,7 +89,7 @@ def rk4():
    return F
 def plant(x0,u_current):
    F_next=rk4()
-   F_new=F_next(x0=x0,p=[u_current]) #should not have to do the brackets for p
+   F_new=F_next(x0=x0,p=u_current) #should not have to do the brackets for p
    return F_new
 
 
@@ -209,9 +209,13 @@ for i in range(N):
 
     state_results.append(x_guess.T)
     
-    control_results.append(u_guess[:, 0])
-    print("Here is u_guess that is supposed to be a number i think",u_guess[:, 0])
-    plantd_next=plant(x0_init,u_guess[:, 0]) #her er feilen atm, virker som den ikke liker formatet på u_guess...
+    control_results.append(u_guess[:, 0]) 
+    print("Type of x0_init:", type(x0_init), x0_init)
+    print("Type of u_guess:", type(u_guess[:, 0]),u_guess[:, 0])
+    
+    #x0_init_casadi = ca.MX(x0_init)
+    #u_guess_casadi = ca.MX(u_guess)
+    plantd_next=plant(x0_init['xf'],u_guess[:, 0]) 
     x0_init=plantd_next
     final_state_results.append(x0_init)
 ########################################################################################
