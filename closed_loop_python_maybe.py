@@ -20,9 +20,6 @@ u3 = MX.sym('u3') #percentage of total mass flow flowing into DG
 u4 = MX.sym('u4') #percentage of total mass flow flowing into boiler
 u= vertcat(u1,u2,u3,u4)
 
-
-   
-
 def params_xdot():
     #Parameters in my system
     cp=4.186 # Joule/(gram*degree celcius) = kJoule/kg*degree celcius
@@ -87,10 +84,11 @@ def rk4():
        Q = Q + DT/6*(k1_q + 2*k2_q + 2*k3_q + k4_q)
    F = Function('F', [X0, U], [X, Q],['x0','p'],['xf','qf']) #xf: x final, Qf : final cost, F er integralet av f
    return F
-def plant(x0,u_current, F):
-   F_new=F(x0=x0,p=u_current) #should not have to do the brackets for p
-   return F_new["xf"]
 
+
+def plant(x0,u_current, F): #take in F intead of calling on the rk4() all the time
+   F_new=F(x0=x0,p=u_current) #should not have to do the brackets for p
+   return F_new["xf"] #this is to not struggle with the wrong format and only get the state values
 
 # Formulate discrete time dynamics|
 if False:
@@ -158,18 +156,25 @@ def formulating(w,w0,lbw,ubw,J,g,lbg,ubg,Xk):
         #både equality og inequality constraints havner her, om ubegrenset: upper bound uendelig for eksempel
         lbg += [0, 0, 0, 0]
         ubg += [0, 0, 0, 0] #changed this from [0,0,0] and it now evaluates objective function more times...
-    return w,g,w0
+    return w,g,w0,lbw,ubw,lbg,ubg,J,Xk_end,Fk
 
-    # Create an NLP solver
-w,g,w0=formulating(w,w0,lbw,ubw,J,g,lbg,ubg,Xk)
+# Create an NLP solver
+w,g,w0,lbw,ubw,lbg,ubg,J,Xk_end,Fk=formulating(w,w0,lbw,ubw,J,g,lbg,ubg,Xk)
+print("here is w0 yasss: ",w0, "here is the length: ",len(w0))
+def update_wo(u_guess_0, x0_init):
+    w0 = x0_init.tolist()
+    for k in range(N):
+        w0 += u_guess_0.tolist() +x0_init.tolist()  # CONVERTING BOTH TO LIST FOR IT TO BECOME ONEBIG ARRAY...
+    return w0
+
+
+
 #print("Size of w0:", len(w0))
 #print("here is the actual w0:",w0)
 
 prob = {'f': J, 'x': vertcat(*w), 'g': vertcat(*g)} #kom tilbake til parametere som varierer, om de inngår i difflikningene
 solver = nlpsol('solver', 'ipopt', prob);
 
-#her må en til loop komme mest sannsynlig: 
-########################## FOR (closed) ################################################
 #initializing the final output we want to plot...
 state_results = []
 control_results = []
@@ -182,56 +187,41 @@ num_states = 4
 u_guess = np.array(w0[: num_controls * N]).reshape(N, num_controls).T
 x_guess = np.array(w0[num_controls * N :]).reshape(N + 1, num_states).T
 
-
-
 # Solve the NLP
 for i in range(N):
-    x0=x0_init
-    lbx=x0_init
-    ubx=x0_init
-    #w=formulating(w,w0,lbw,ubw,J,g,lbg,ubg,Xk)[0]
-    #g=formulating(w,w0,lbw,ubw,J,g,lbg,ubg,Xk)[1]
-    ###NED TO CALL THE >FORMULATion of the mpc here, mip
-    #prob = {'f': J, 'x': vertcat(*w), 'g': vertcat(*g)} #kom tilbake til parametere som varierer, om de inngår i difflikningene
-    #solver = nlpsol('solver', 'ipopt', prob);
-    #here the xo etc has to be redifined based on the solution
-    sol = solver(x0=w0, lbx=lbw, ubx=ubw, lbg=lbg, ubg=ubg) #I think the lbx etc stays the same?
+    final_state_results.append(x0_init)
+    #solver skal ha lengdte på 1156 inn som w0,lbw og ubw, mens lbg og ubg skal ha leNgde 576
+    sol = solver(x0=w0, lbx=lbw, ubx=ubw, lbg=lbg, ubg=ubg) ###################
     w_opt = sol['x'].full().flatten()
-   
     # Extract state variables from w_opt
     #her også må endre for tror det er feil rekkefølge mehehehe
     u_guess = w_opt[: num_controls * N].reshape(N, num_controls).T
     x_guess = w_opt[num_controls * N :].reshape(N + 1, num_states).T
-    #x_guess = w_opt[: num_controls * N].reshape(N, num_controls).T
-    #u_guess = w_opt[num_controls * N :].reshape(N + 1, num_states).T
-
-
-    state_results.append(x_guess.T)
-    
+    #state_results.append(x_guess.T)
     control_results.append(u_guess[:, 0]) 
-    print("Type of x0_init:", type(x0_init), x0_init)
-    print("Type of u_guess:", type(u_guess[:, 0]),u_guess[:, 0])
-    
-    #x0_init_casadi = ca.MX(x0_init)
-    #u_guess_casadi = ca.MX(u_guess)
+    #print("Type of x0_init:", type(x0_init), x0_init)
+    #print("Type of u_guess:", type(u_guess[:, 0]),u_guess[:, 0])
     plantd_next=plant(x0_init,u_guess[:, 0], F)
-    x0_init=np.array(plantd_next).flatten()
-    final_state_results.append(x0_init)
+    x0_init=np.array(plantd_next).flatten() #to get x0_init on the right format as a [ 1 2 3]
+    #final_state_results.append(x0_init)
+    u_guess_0=u_guess[:,0]
+    #print("Type of x0_init:", type(x0_init), x0_init)
+    #print("Type of u_guess:", type(u_guess[:, 0]),u_guess[:, 0])
+    #se om oppdateringen er riktig!!!
+    w0=update_wo(u_guess_0,x0_init)
+    #print("Here is the newest w0: ", w0)
+    
 ########################################################################################
 
 # Plot the solution, sånn henter man ut variablene
-#x1_opt = w_opt[0::8]
-#x2_opt = w_opt[1::8]
-#x3_opt = w_opt[2::8]
-#x4_opt = w_opt[3::8]
-#u1_opt = w_opt[4::8]
-#u2_opt = w_opt[5::8]
-#u3_opt = w_opt[6::8]
-#u4_opt = w_opt[7::8]
+
 #new definition after the second for-loop_
     #Now I'm trying something new to get the right dimensions: full().flatten()
 x1_opt = final_state_results[0::4]
+print("her is the full final_state_result: ", len(final_state_results), final_state_results)
+#print("her er final states_result_hvaskjer?(x1_opt)", len(x1_opt),final_state_results[0::4])
 x1_done= [item for sublist in x1_opt for item in sublist]
+#print( " her er x1_done: ",len(x1_done), x1_done)
 x2_opt = final_state_results[1::4]
 x2_done= [item for sublist in x2_opt for item in sublist]
 x3_opt = final_state_results[2::4]
@@ -239,7 +229,9 @@ x3_done= [item for sublist in x3_opt for item in sublist]
 x4_opt = final_state_results[3::4]
 x4_done= [item for sublist in x4_opt for item in sublist]
 u1_opt = control_results[0::4]
+#print("This is u1_opt: ",len(u1_opt),  u1_opt)
 u1_done= [item for sublist in u1_opt for item in sublist]
+#print("her er u1_done lessgo: ", len(u1_done), u1_done)
 u2_opt = control_results[1::4]
 u2_done= [item for sublist in u2_opt for item in sublist]
 u3_opt = control_results[2::4]
@@ -250,81 +242,45 @@ x1_done_np = np.array(x1_done)
 x2_done_np = np.array(x2_done)
 x3_done_np = np.array(x3_done)
 x4_done_np = np.array(x4_done)
+
 u1_done_np = np.array(u1_done)
 u2_done_np = np.array(u2_done)
 u3_done_np = np.array(u3_done)
 u4_done_np = np.array(u4_done)
 
-
-#tgrid = [3240*4] #12960 hehe
 #tgrid = [T/N*k for k in range(N+1)]
-tgrid = [T/N*k for k in range(N)]
-print("x1 opt selve greia faen: ", x1_done)
-print("u1 hele greia helvette: ", u1_done)
-print("tgrid for å se hve den består av meh: ", tgrid)
-print("x1 len: ", x1_opt.__len__())
-print("x2 len: ", x2_opt.__len__())
-print("u1 len: ", u1_opt.__len__())
-print("u2 len: ", u2_opt.__len__())
-print("tgrid len: ", tgrid.__len__())
+tgrid = [(T/N*k)/(60*60) for k in range(N)]
+print("here is t_grid: ",tgrid)
 
 
-#Biiiig question, is the function for parameters and the rk4 function supposed to be called several times? In that case, where?
+t_values = np.linspace(0, T, N)  # Adjusted initialization
+print("here is t_values: ",t_values)
+
 import matplotlib.pyplot as plt
 plt.figure(1)
 plt.clf()
-#for i in range(4):
-#    plt.plot(tgrid, [x[i] for x in x1_opt])
-plt.plot(tgrid, x1_done_np*90, '--')
-#for i in range(4):
- #   plt.plot(tgrid, [x[i] for x in x2_opt])    
-plt.plot(tgrid, x2_done_np*90, '-')
-#for i in range(4):
- #   plt.plot(tgrid, [x[i] for x in x3_opt])
-plt.plot(tgrid,x3_done_np*90, '.')
-#for i in range(4):
- #   plt.plot(tgrid, [x[i] for x in x4_opt])
-plt.plot(tgrid,x4_done_np*90, '.-')
-plt.xlabel('t')
-plt.legend(['x1:temp water dg','x2:temp water boiler','x3:temp water tes','x4:temp water ahouse'])
-#prøver å få det til to plots, let's see ...
-plt.figure(2)
 
-# Convert CasADi DM arrays to numpy arrays
-#u1_opt_np = np.array(u1_opt)
-#u2_opt_np = np.array(u2_opt)
-#u3_opt_np = np.array(u3_opt)
-#u4_opt_np = np.array(u4_opt)
+
+plt.plot(tgrid, x1_done_np*90, '--')
+  
+plt.plot(tgrid, x2_done_np*90, '-')
+
+plt.plot(tgrid,x3_done_np*90, '.')
+
+plt.plot(tgrid,x4_done_np*90, '-')
+plt.xlabel('T: hours')
+plt.ylabel('Water Temperature degrees celcius')
+plt.legend(['x1:temp water dg','x2:temp water boiler','x3:temp water tes','x4:temp water ahouse'])
+
 
 # Plotting
 plt.figure(2)
-#plt.step(tgrid, np.concatenate([[np.nan] for _ in range(len(tgrid))]), '--')  # Add NaN values with the same length as u1_opt_np
-#plt.step(tgrid, u1_opt_np[:, 0], '.-')
-#plt.step(tgrid, np.concatenate([[np.nan] for _ in range(len(tgrid))]), '-.')  # Add NaN values with the same length as u2_opt_np
-#plt.step(tgrid, u2_opt_np[:, 0], '--')
-#plt.step(tgrid, np.concatenate([[np.nan] for _ in range(len(tgrid))]), '..')  # Add NaN values with the same length as u3_opt_np
-#plt.step(tgrid, u3_opt_np[:, 0], '..')
-#plt.step(tgrid, np.concatenate([[np.nan] for _ in range(len(tgrid))]), '.--.')  # Add NaN values with the same length as u4_opt_np
-#plt.step(tgrid, u4_opt_np[:, 0], '.--.')
-
-#plt.step(tgrid, np.concatenate([[np.nan], u1_opt_np]), '-.')
-#plt.step(tgrid, np.concatenate([[np.nan], u2_opt_np]), '-.')
-#plt.step(tgrid, np.concatenate([[np.nan], u3_opt_np]), '-.')
-#plt.step(tgrid, np.concatenate([[np.nan], u4_opt_np]), '-.')
-#plt.xlabel('t')
-#plt.legend(['u1:power_%_DG','u2:power_%_boiler','u3:%_mass_flow_DG','u4:%_mass_flow_boiler'])
-#plt.grid()
-#plt.show()
-
-#plt.step(tgrid, vertcat(DM.nan(1), u1_done_np), '-.') #her i plottingen kan det være vanskelig å få det riktig hmmmm....
-#plt.step(tgrid, vertcat(DM.nan(1), u2_done_np), '-.') #prøver å få plotta alle u-ene, får se hva som skjer...
-#plt.step(tgrid, vertcat(DM.nan(1), u3_done_np), '-.')
-#plt.step(tgrid, vertcat(DM.nan(1), u4_done_np), '-.')
-plt.plot(tgrid, u1_done_np, '--') #trenger ikke å gange med 90 her da vel???
-plt.plot(tgrid, u2_done_np, '-.') # --||--
-plt.plot(tgrid, u3_done_np, '.') #--||--
-plt.plot(tgrid, u4_done_np, '-') # --||--
-plt.xlabel('t')
+plt.plot(tgrid, u1_done_np, '--') 
+plt.plot(tgrid, u2_done_np, '-.') 
+plt.plot(tgrid, u3_done_np, '.') 
+plt.plot(tgrid, u4_done_np, '-') 
+plt.xlabel('T: hours')
+plt.ylabel('Percentage')
 plt.legend(['u1:power_%_DG','u2:power_%_boiler','u3:%_mass_flow_DG','u4:%_mass_flow_boiler'])
 plt.grid()
 plt.show()

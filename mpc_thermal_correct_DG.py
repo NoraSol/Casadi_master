@@ -158,6 +158,7 @@ for k in range(N):
 # Create an NLP solver
 prob = {'f': J, 'x': vertcat(*w), 'g': vertcat(*g)} #kom tilbake til parametere som varierer, om de inngår i difflikningene
 solver = nlpsol('solver', 'ipopt', prob);
+print("here is length w0: ",len(w0),"here is length lbw: ",len(lbw), "here is length ubw: ", len(ubw), "here is length lbg: ",len(lbg),"here is length ubg: ",len(ubg))
 
 # Solve the NLP, den initialiseres
 sol = solver(x0=w0, lbx=lbw, ubx=ubw, lbg=lbg, ubg=ubg)
