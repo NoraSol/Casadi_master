@@ -184,7 +184,6 @@ final_state_results = []
 #initializing the first u_guesses and x_guesses
 num_controls = 4
 num_states = 4
-#Prøver å endre rekkefølge her fordi noe er tydeligvis feil ....
 u_guess = np.array(w0[: num_controls * N]).reshape(N, num_controls).T
 x_guess = np.array(w0[num_controls * N :]).reshape(N + 1, num_states).T
 
@@ -225,37 +224,16 @@ for i in range(N):
 ################# New method might be correct.... ###############
 final_state_results_done= [item for sublist in final_state_results for item in sublist]
 
-#x1_opt = final_state_results[0::4]
+
 x1_opt = final_state_results_done[0::4]
-#print("her is the full final_state_result: ", len(final_state_results), final_state_results)
-#print("her kan du finne x1_opt: ",len(x1_opt),x1_opt)
-#print("her er final states_result_hvaskjer?(x1_opt)", len(x1_opt),final_state_results[0::4])
-#x1_done= [item for sublist in x1_opt for item in sublist]
-#print( " her er x1_done: ",len(x1_done), x1_done)
-#x2_opt = final_state_results[1::4]
 x2_opt = final_state_results_done[1::4]
-#x2_done= [item for sublist in x2_opt for item in sublist]
-#x3_opt = final_state_results[2::4]
 x3_opt=final_state_results_done[2::4]
-#x3_done= [item for sublist in x3_opt for item in sublist]
-#x4_opt = final_state_results[3::4]
 x4_opt=final_state_results_done[3::4]
-#x4_done= [item for sublist in x4_opt for item in sublist]
 control_results_done = [item for sublist in control_results for item in sublist]
-#u1_opt = control_results[0::4]
 u1_opt = control_results_done[0::4]
-#print("This is u1_opt: ",len(u1_opt),  u1_opt)
-#u1_done= [item for sublist in u1_opt for item in sublist]
-#print("her er u1_done lessgo: ", len(u1_done), u1_done)
-#u2_opt = control_results[1::4]
 u2_opt = control_results_done[1::4]
-#u2_done= [item for sublist in u2_opt for item in sublist]
-#u3_opt = control_results[2::4]
 u3_opt= control_results_done[2::4]
-#u3_done= [item for sublist in u3_opt for item in sublist]
-#u4_opt = control_results[3::4]
 u4_opt = control_results_done[3::4]
-#u4_done= [item for sublist in u4_opt for item in sublist]
 x1_done_np = np.array(x1_opt)
 x2_done_np = np.array(x2_opt)
 x3_done_np = np.array(x3_opt)
