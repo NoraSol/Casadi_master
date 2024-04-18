@@ -162,11 +162,13 @@ def formulating(w,w0,lbw,ubw,J,g,lbg,ubg,Xk):
 w,g,w0,lbw,ubw,lbg,ubg,J,Xk_end,Fk=formulating(w,w0,lbw,ubw,J,g,lbg,ubg,Xk)
 print("here is w0 yasss: ",w0, "here is the length: ",len(w0))
 def update_wo(u_guess_0, x0_init):
-    w0 = x0_init.tolist()
+    w0=[]
+    w0 += x0_init.tolist()
     for k in range(N):
-        w0 += u_guess_0.tolist() +x0_init.tolist()  # CONVERTING BOTH TO LIST FOR IT TO BECOME ONEBIG ARRAY...
+        w0 += u_guess_0.tolist() 
+        w0 += x0_init.tolist()  # CONVERTING BOTH TO LIST FOR IT TO BECOME ONEBIG ARRAY...
     return w0
-
+print("Here is w0 before the for-loop: ", len(w0), w0)
 
 
 #print("Size of w0:", len(w0))
@@ -176,7 +178,6 @@ prob = {'f': J, 'x': vertcat(*w), 'g': vertcat(*g)} #kom tilbake til parametere 
 solver = nlpsol('solver', 'ipopt', prob);
 
 #initializing the final output we want to plot...
-state_results = []
 control_results = []
 final_state_results = []
 
@@ -189,72 +190,89 @@ x_guess = np.array(w0[num_controls * N :]).reshape(N + 1, num_states).T
 
 # Solve the NLP
 for i in range(N):
-    final_state_results.append(x0_init)
+    final_state_results.append(x0_init) 
     #solver skal ha lengdte på 1156 inn som w0,lbw og ubw, mens lbg og ubg skal ha leNgde 576
     sol = solver(x0=w0, lbx=lbw, ubx=ubw, lbg=lbg, ubg=ubg) ###################
     w_opt = sol['x'].full().flatten()
-    # Extract state variables from w_opt
-    #her også må endre for tror det er feil rekkefølge mehehehe
+    #print("w_opt før u_guess: ", len(w_opt),w_opt)
+    #TRYING A NEW U-guess!!!!
+    #u-guess=w_opt[0:3]
     u_guess = w_opt[: num_controls * N].reshape(N, num_controls).T
+    #print("u_guess consisting of w_opt: ", len(u_guess),u_guess)
+   
     x_guess = w_opt[num_controls * N :].reshape(N + 1, num_states).T
-    #state_results.append(x_guess.T)
-    control_results.append(u_guess[:, 0]) 
+    print("x_guess consisting of w_opt",len(x_guess),x_guess)
+    
+    #print("New final state results, x_guess", len(x_guess.T[0]), x_guess.T[0])
+    control_results.append(u_guess[:, :4][0]) 
+    #control_results.append(u_guess[:,0]) #her er det fire stykker men de ser jo like ut og endres ikke så ye
     #print("Type of x0_init:", type(x0_init), x0_init)
     #print("Type of u_guess:", type(u_guess[:, 0]),u_guess[:, 0])
-    plantd_next=plant(x0_init,u_guess[:, 0], F)
+    plantd_next=plant(x0_init,u_guess[:, :4][0], F)
     x0_init=np.array(plantd_next).flatten() #to get x0_init on the right format as a [ 1 2 3]
     #final_state_results.append(x0_init)
-    u_guess_0=u_guess[:,0]
+    u_guess_0=u_guess[:, :4][0]
     #print("Type of x0_init:", type(x0_init), x0_init)
-    #print("Type of u_guess:", type(u_guess[:, 0]),u_guess[:, 0])
+    #print("Type of u_guess:", type(u_guess[:, :4][0]),u_guess[:, :4][0])
     #se om oppdateringen er riktig!!!
     w0=update_wo(u_guess_0,x0_init)
+    #print("parts of w0 during loop: ", w0)
     #print("Here is the newest w0: ", w0)
-    
+#print("W0 after the last forloop: ", len(w0), w0)  
 ########################################################################################
 
 # Plot the solution, sånn henter man ut variablene
+################# New method might be correct.... ###############
+final_state_results_done= [item for sublist in final_state_results for item in sublist]
 
-#new definition after the second for-loop_
-    #Now I'm trying something new to get the right dimensions: full().flatten()
-x1_opt = final_state_results[0::4]
-print("her is the full final_state_result: ", len(final_state_results), final_state_results)
+#x1_opt = final_state_results[0::4]
+x1_opt = final_state_results_done[0::4]
+#print("her is the full final_state_result: ", len(final_state_results), final_state_results)
+#print("her kan du finne x1_opt: ",len(x1_opt),x1_opt)
 #print("her er final states_result_hvaskjer?(x1_opt)", len(x1_opt),final_state_results[0::4])
-x1_done= [item for sublist in x1_opt for item in sublist]
+#x1_done= [item for sublist in x1_opt for item in sublist]
 #print( " her er x1_done: ",len(x1_done), x1_done)
-x2_opt = final_state_results[1::4]
-x2_done= [item for sublist in x2_opt for item in sublist]
-x3_opt = final_state_results[2::4]
-x3_done= [item for sublist in x3_opt for item in sublist]
-x4_opt = final_state_results[3::4]
-x4_done= [item for sublist in x4_opt for item in sublist]
-u1_opt = control_results[0::4]
+#x2_opt = final_state_results[1::4]
+x2_opt = final_state_results_done[1::4]
+#x2_done= [item for sublist in x2_opt for item in sublist]
+#x3_opt = final_state_results[2::4]
+x3_opt=final_state_results_done[2::4]
+#x3_done= [item for sublist in x3_opt for item in sublist]
+#x4_opt = final_state_results[3::4]
+x4_opt=final_state_results_done[3::4]
+#x4_done= [item for sublist in x4_opt for item in sublist]
+control_results_done = [item for sublist in control_results for item in sublist]
+#u1_opt = control_results[0::4]
+u1_opt = control_results_done[0::4]
 #print("This is u1_opt: ",len(u1_opt),  u1_opt)
-u1_done= [item for sublist in u1_opt for item in sublist]
+#u1_done= [item for sublist in u1_opt for item in sublist]
 #print("her er u1_done lessgo: ", len(u1_done), u1_done)
-u2_opt = control_results[1::4]
-u2_done= [item for sublist in u2_opt for item in sublist]
-u3_opt = control_results[2::4]
-u3_done= [item for sublist in u3_opt for item in sublist]
-u4_opt = control_results[3::4]
-u4_done= [item for sublist in u4_opt for item in sublist]
-x1_done_np = np.array(x1_done)
-x2_done_np = np.array(x2_done)
-x3_done_np = np.array(x3_done)
-x4_done_np = np.array(x4_done)
+#u2_opt = control_results[1::4]
+u2_opt = control_results_done[1::4]
+#u2_done= [item for sublist in u2_opt for item in sublist]
+#u3_opt = control_results[2::4]
+u3_opt= control_results_done[2::4]
+#u3_done= [item for sublist in u3_opt for item in sublist]
+#u4_opt = control_results[3::4]
+u4_opt = control_results_done[3::4]
+#u4_done= [item for sublist in u4_opt for item in sublist]
+x1_done_np = np.array(x1_opt)
+x2_done_np = np.array(x2_opt)
+x3_done_np = np.array(x3_opt)
+x4_done_np = np.array(x4_opt)
 
-u1_done_np = np.array(u1_done)
-u2_done_np = np.array(u2_done)
-u3_done_np = np.array(u3_done)
-u4_done_np = np.array(u4_done)
+u1_done_np = np.array(u1_opt)
+u2_done_np = np.array(u2_opt)
+u3_done_np = np.array(u3_opt)
+u4_done_np = np.array(u4_opt)
 
 #tgrid = [T/N*k for k in range(N+1)]
 tgrid = [(T/N*k)/(60*60) for k in range(N)]
-print("here is t_grid: ",tgrid)
+#print("here is t_grid: ",tgrid)
 
 
 t_values = np.linspace(0, T, N)  # Adjusted initialization
-print("here is t_values: ",t_values)
+#print("here is t_values: ",t_values)
 
 import matplotlib.pyplot as plt
 plt.figure(1)
