@@ -62,7 +62,7 @@ c_X3=20.5
 c_x1=0.0
 c_x2=0.0
 
-c_boiler=0.01
+c_boiler=0.1
 c_co2=0.01 #seeing what the temperatures end up with now
 #reference temperatures to ensure high enough temperature in the "house", still don't know what these bounds should be...
 x3_ref=65.0/90
