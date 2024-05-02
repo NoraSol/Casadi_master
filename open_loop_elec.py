@@ -13,7 +13,7 @@ x2 = MX.sym('x2')
 x3 = MX.sym('x3')
 x4 = MX.sym('x4')
 x5 = MX.sym('x5')
-x = vertcat(x1, x2, x3, x4, x5)
+x = vertcat(x1, x2, x3, x4, x5) #Adding a new state here, x5 
 u1 = MX.sym('u1') #capacity percentage DG
 u2 = MX.sym('u2') #capacity percentage boiler
 u3 = MX.sym('u3') #percentage of total mass flow flowing into DG
@@ -51,7 +51,7 @@ q_BOILER= u2*B_MAX_HEAT
 t_mix_ratio = u3*x1 + x4*(1-u3)
 t_in_tes_ratio = u4*x2 + t_mix_ratio*(1-u4) #viktig at det ikke bare er x1(1-u4)
 
-#power balance for the electrical systems: 
+#power balance for the electrical systems:  ############################### NEW ###########################
 beta=4 #this can also be chaaaanged
 pw=55 #kw just guessing for now
 pl=80 #kw, this is what the hotel/house needs
@@ -60,14 +60,16 @@ ppv=150 #an example for now, will irl vary more
 pel=(u2*B_MAX_HEAT)/0.98
 pd=u1*DG_el
 pb= pw+ppv+pd-pel-pl 
-
+###################################### NEW """"""###############################################
 xdot= vertcat((cp*u3*w_tot*(x4-x1)*90 + q_DG-q_loss)/(rho*c_dg_heatcap*V_dg*90),
                (cp*u4*w_tot*(t_mix_ratio-x2)*90 -q_loss + q_BOILER)/(rho*c_dg_heatcap*V_boiler*90),
                   (cp*w_tot*(t_in_tes_ratio - x3)*90 -q_loss)/(rho*V_tes*c_tes*90),
                    (cp*w_tot*(x3-x4)*90 - q_rad - q_loss)/(rho*c_dg_heatcap*V_rad*90),
+                   ##### NNNNEEEEEEWWWW###############################
                    (pb/beta)/90) #this most likely needs to be scaled mehhhhhhhhhhhhhhhhhhhhhh
+###################### NEW #################################################################
 
-#this will depend on wht the temperature of the house and what heat the user decides to put on.....
+
 
 #weighing of the different components of the objective function...
 c_X3=20.5 
@@ -183,7 +185,7 @@ x1_opt = w_opt[0::9]
 x2_opt = w_opt[1::9]
 x3_opt = w_opt[2::9]
 x4_opt = w_opt[3::9]
-x5_opt = w_opt[4::9]
+x5_opt = w_opt[4::9] #here is the battery state mehhhhh
 u1_opt = w_opt[5::9]
 u2_opt = w_opt[6::9]
 u3_opt = w_opt[7::9]
@@ -200,7 +202,7 @@ plt.plot(t_values/(60*60), x1_opt*90, '--')
 plt.plot(t_values/(60*60), x2_opt*90, '-')
 plt.plot(t_values/(60*60),x3_opt*90, '.')
 plt.plot(t_values/(60*60),x4_opt*90, '.-')
-plt.plot(t_values/(60*60), x5_opt*90,'.-.')
+plt.plot(t_values/(60*60), x5_opt*90,'.-.') #plotting the new state and scaling mehhhh
 plt.ylabel('Temperature degrees celcius/battery percentage')
 plt.xlabel('T: hours')
 plt.legend(['x1:temp water dg','x2:temp water boiler','x3:temp water tes','x4:temp water ahouse','x5:percentage battery'])
