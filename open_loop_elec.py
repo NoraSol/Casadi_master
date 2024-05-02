@@ -65,7 +65,7 @@ xdot= vertcat((cp*u3*w_tot*(x4-x1)*90 + q_DG-q_loss)/(rho*c_dg_heatcap*V_dg*90),
                (cp*u4*w_tot*(t_mix_ratio-x2)*90 -q_loss + q_BOILER)/(rho*c_dg_heatcap*V_boiler*90),
                   (cp*w_tot*(t_in_tes_ratio - x3)*90 -q_loss)/(rho*V_tes*c_tes*90),
                    (cp*w_tot*(x3-x4)*90 - q_rad - q_loss)/(rho*c_dg_heatcap*V_rad*90),
-                   pb/beta) #this most likely needs to be scaled mehhhhhhhhhhhhhhhhhhhhhh
+                   (pb/beta)/90) #this most likely needs to be scaled mehhhhhhhhhhhhhhhhhhhhhh
 
 #this will depend on wht the temperature of the house and what heat the user decides to put on.....
 
@@ -74,8 +74,8 @@ c_X3=20.5
 c_x1=0.0
 c_x2=0.0
 
-c_boiler=0.11
-c_co2=0.12 #seeing what the temperatures end up with now
+c_boiler=0.1
+c_co2=0.1 #seeing what the temperatures end up with now
 #reference temperatures to ensure high enough temperature in the "house", still don't know what these bounds should be...
 x3_ref=65.0/90
 x1_ref=75.0/90
