@@ -5,7 +5,7 @@ from casadi import *
 
 T = 24.0*60*60 #changing from 10 to 24 hours to be "realistic"#10. # Time horizon
 N = 144 # number of control intervals ten minutes in hourform
-
+pcurt=10
 
 # Declare model variables
 x1 = MX.sym('x1')
@@ -48,18 +48,22 @@ PPV_MAX=275 #kw
 q_DG= u1*DG_heat
 q_BOILER= u2*B_MAX_HEAT
 
+#making a constraint that does not lest water being let in to the DG unless it is turned on: ##############
+u3<=u1
+#Let's see if this changes things
 t_mix_ratio = u3*x1 + x4*(1-u3)
 t_in_tes_ratio = u4*x2 + t_mix_ratio*(1-u4) #viktig at det ikke bare er x1(1-u4)
 
 #power balance for the electrical systems:  ############################### NEW ###########################
 beta=4 #this can also be chaaaanged
-pw=55 #kw just guessing for now
+#pw=55 #kw just guessing for now
 pl=80 #kw, this is what the hotel/house needs
-ppv=150 #an example for now, will irl vary more
+ppv=60 #an example for now, will irl vary more
+pcurt <= ppv
 #pel=q_BOILER/0.98
 pel=(u2*B_MAX_HEAT)/0.98
 pd=u1*DG_el
-pb= pw+ppv+pd-pel-pl 
+pb= ppv+pd-pel-pl -pcurt
 ###################################### NEW """"""###############################################
 xdot= vertcat((cp*u3*w_tot*(x4-x1)*90 + q_DG-q_loss)/(rho*c_dg_heatcap*V_dg*90),
                (cp*u4*w_tot*(t_mix_ratio-x2)*90 -q_loss + q_BOILER)/(rho*c_dg_heatcap*V_boiler*90),
@@ -139,6 +143,14 @@ lbw +=[62.0/90, 62/90, 62.0/90, 62.0/90, 42.0/90 ]
 ubw += [62.0/90, 62/90, 62.0/90, 62.0/90, 42.0/90 ]
 w0 += [62.0/90, 62.0/90, 62.0/90, 62.0/90, 42.0/90 ] #her begynner casaadi å søke, må være feasible!!!!, ikke del på null
 
+pb_values = []
+pl_values = []
+pd_values = []
+pel_values = []
+ppv_values = []
+pcurt_values = []
+
+
 # Formulate the NLP
 for k in range(N):
     # New NLP variable for the control
@@ -168,8 +180,17 @@ for k in range(N):
     #både equality og inequality constraints havner her, om ubegrenset: upper bound uendelig for eksempel
     lbg += [0, 0, 0, 0, 0]
     ubg += [0, 0, 0, 0, 0] #changed this from [0,0,0] and it now evaluates objective function more times...
-    print("This is to find out what is happening to pb, here pd:  ",pd, "Here -pel: ",pel, "Lastly pb: ", pb)
-    #pb= pw+ppv+pd-pel-pl 
+    #print("This is to find out what is happening to pb, here pd:  ",pd, "Here -pel: ",pel, "Lastly pb: ", pb)
+    
+ 
+
+#pb_values.append(f(X[0::5]))
+#print("here is pb_values: ", pb_values, "here is the type: ",type(pb_values))
+
+
+#print(" Anothe one, np_pb: ",np_pb," the type of it: ", type(np_pb), "length: ",len(np_pb))
+
+    
 
 # Create an NLP solver
 prob = {'f': J, 'x': vertcat(*w), 'g': vertcat(*g)} #kom tilbake til parametere som varierer, om de inngår i difflikningene
@@ -191,9 +212,32 @@ u2_opt = w_opt[6::9]
 u3_opt = w_opt[7::9]
 u4_opt = w_opt[8::9]
 
+#pel=(u2*B_MAX_HEAT)/0.98
+#pd=u1*DG_el
+
+for i in range(N):
+    pb_values.append(ppv+DG_el*u1_opt[i]-(u2_opt[i]*B_MAX_HEAT)/0.98-pl -pcurt)
+    pel_values.append((B_MAX_HEAT*u2_opt[i])/0.98)
+    pd_values.append(u1_opt[i]*DG_el)
+    ppv_values.append(ppv)
+    pcurt_values.append(pcurt)
+    pl_values.append(pl)
+
+
+
+np_pb=np.array(pb_values)
+print("Here the final result of pb_values is: ", np_pb)
+np_pl=np.array(pl_values)
+np_pd=np.array(pd_values)
+np_pel=np.array(pel_values)
+np_ppv=np.array(ppv_values)
+np_pcurt=np.array(pcurt_values)
+
 
 tgrid = [T/N*k for k in range(N+1)]
 t_values = np.linspace(0, T, N+1)  # Adjusted initialization
+#print("LENGTH OF TVALUSS: ", len(t_values))
+t_vals_pbosv = np.linspace(0, T, N)
 
 import matplotlib.pyplot as plt
 plt.figure(1)
@@ -202,7 +246,7 @@ plt.plot(t_values/(60*60), x1_opt*90, '--')
 plt.plot(t_values/(60*60), x2_opt*90, '-')
 plt.plot(t_values/(60*60),x3_opt*90, '.')
 plt.plot(t_values/(60*60),x4_opt*90, '.-')
-plt.plot(t_values/(60*60), x5_opt*90,'.-.') #plotting the new state and scaling mehhhh
+#plt.plot(t_values/(60*60), x5_opt*90,'.-.') #plotting the new state and scaling mehhhh
 plt.ylabel('Temperature degrees celcius/battery percentage')
 plt.xlabel('T: hours')
 plt.legend(['x1:temp water dg','x2:temp water boiler','x3:temp water tes','x4:temp water ahouse','x5:percentage battery'])
@@ -215,5 +259,21 @@ plt.step(t_values/(60*60), vertcat(DM.nan(1), u4_opt), '-.')
 plt.ylabel('Percentage')
 plt.xlabel('T: hours')
 plt.legend(['u1:power_%_DG','u2:power_%_boiler','u3:%_mass_flow_DG','u4:%_mass_flow_boiler'])
+#plt.grid()
+#plt.show()
+
+plt.figure(3)
+plt.plot(t_values/(60*60), x5_opt*90,'.-.') #plotting the new state and scaling mehhhh
+plt.plot(t_vals_pbosv/(60*60), np_pb, '.' )
+plt.plot(t_vals_pbosv/(60*60),np_pcurt, '--')
+plt.plot(t_vals_pbosv/(60*60),np_pel, '-')
+plt.plot(t_vals_pbosv/(60*60),np_pd,'.-')
+plt.plot(t_vals_pbosv/(60*60),np_pl,'.-' )
+plt.plot(t_vals_pbosv/(60*60), np_ppv, '-.')
+
+plt.ylabel('Battery percentage or power in kW')
+plt.xlabel('T: hours')
+plt.legend(['x5: battery percentage','pb: power in/out of batttery','pcurt: curtailed PV power','pel: power used electrical boiler'
+            , 'pd:power prod Diesel', 'pl: power used Isfjorden','ppv: power prod PV'])
 plt.grid()
 plt.show()
