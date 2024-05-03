@@ -5,6 +5,14 @@ from casadi import *
 
 T = 24.0*60*60 #changing from 10 to 24 hours to be "realistic"#10. # Time horizon
 N = 144 # number of control intervals ten minutes in hourform
+def get_ppv():
+    for k in range(N):
+        if k<70:
+            ppv=110
+        else:
+            ppv=10
+        return ppv
+    
 
 # Declare model variables
 x1 = MX.sym('x1')
@@ -57,8 +65,8 @@ t_in_tes_ratio = u4*x2 + t_mix_ratio*(1-u4) #viktig at det ikke bare er x1(1-u4)
 #power balance for the electrical systems:  ############################### NEW ###########################
 beta=4 #this can also be chaaaanged
 #pw=55 #kw just guessing for now
-pl=80 #kw, this is what the hotel/house needs
-ppv=110#60 #an example for now, will irl vary more
+pl=90 #kw, this is what the hotel/house needs
+ppv=get_ppv()
 pcurt =u5*ppv
 #pel=q_BOILER/0.98
 pel=(u2*B_MAX_HEAT)/0.98
@@ -119,7 +127,7 @@ else:
    F = Function('F', [X0, U], [X, Q],['x0','p'],['xf','qf']) #xf: x final, Qf : final cost, F er integralet av f
 
 # Evaluate at a test point
-Fk = F(x0=[62.0/90, 62.0/90, 62.0/90, 62.0/90,42.0/90 ],p=0.4) #tror dette er startpunkt men må sjekke ut?
+Fk = F(x0=[62.0/90, 62.0/90, 62.0/90, 62.0/90,22.0/90 ],p=0.4) #tror dette er startpunkt men må sjekke ut?
 #Fk = F(x0=[0.2,0.3,],p=0.4)
 print(Fk['xf'])
 print(Fk['qf'])
@@ -139,9 +147,9 @@ ubg = []
 Xk = MX.sym('X0', 5) #changed to three since we now have three x-es!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 w += [Xk]
 #lbw += [67.0, 66.5, 66.0, 53.0 ]  #init conditions!!!!!!!!!!!!!!
-lbw +=[62.0/90, 62/90, 62.0/90, 62.0/90, 42.0/90 ]
-ubw += [62.0/90, 62/90, 62.0/90, 62.0/90, 42.0/90 ]
-w0 += [62.0/90, 62.0/90, 62.0/90, 62.0/90, 42.0/90 ] #her begynner casaadi å søke, må være feasible!!!!, ikke del på null
+lbw +=[62.0/90, 62/90, 62.0/90, 62.0/90, 22.0/90 ]
+ubw += [62.0/90, 62/90, 62.0/90, 62.0/90, 22.0/90 ]
+w0 += [62.0/90, 62.0/90, 62.0/90, 62.0/90, 22.0/90 ] #her begynner casaadi å søke, må være feasible!!!!, ikke del på null
 
 pb_values = []
 pl_values = []
@@ -173,16 +181,18 @@ for k in range(N):
     #changed now to have more realistic limits, let's see!!
     lbw += [40.0/90, 40.0/90, 40.0/90, 30.0/90, 20.0/90 ] # temperatur av TES skal eeeeeeeeegt ikke gå lavere enn 65 men tester dette....
     ubw += [90.0/90, 90.0/90, 90.0/90, 90.0/90, 90.0/90 ]
-    w0 += [62.0/90, 62.0/90, 62.0/90, 62.0/90, 42.0/90 ]  #endret her til 78 på dg
+    w0 += [62.0/90, 62.0/90, 62.0/90, 62.0/90, 22.0/90 ]  #endret her til 78 på dg
   
     # Add equality constraint
     g   += [Xk_end-Xk] #blå minus rød fra video, multiple shoot constrainten!!! bruker g for vanlige constraints også
     #både equality og inequality constraints havner her, om ubegrenset: upper bound uendelig for eksempel
     lbg += [0, 0, 0, 0, 0]
     ubg += [0, 0, 0, 0, 0] #changed this from [0,0,0] and it now evaluates objective function more times...
-    #print("This is to find out what is happening to pb, here pd:  ",pd, "Here -pel: ",pel, "Lastly pb: ", pb)
+    if k<70:
+        ppv=110
+    else:ppv=10
     
- 
+     
 
 #pb_values.append(f(X[0::5]))
 #print("here is pb_values: ", pb_values, "here is the type: ",type(pb_values))
@@ -215,8 +225,12 @@ u5_opt = w_opt[9::10]
 
 #pel=(u2*B_MAX_HEAT)/0.98
 #pd=u1*DG_el
-
+#ppv=get_ppv()
 for i in range(N):
+    if i<70:
+        ppv=110
+    else: 
+        ppv=10
     pb_values.append(ppv+(DG_el*u1_opt[i])-(u2_opt[i]*B_MAX_HEAT)/0.98-pl -(ppv*u5_opt[i]))
     pel_values.append((B_MAX_HEAT*u2_opt[i])/0.98)
     pd_values.append(u1_opt[i]*DG_el)
