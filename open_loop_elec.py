@@ -5,7 +5,6 @@ from casadi import *
 
 T = 24.0*60*60 #changing from 10 to 24 hours to be "realistic"#10. # Time horizon
 N = 144 # number of control intervals ten minutes in hourform
-pcurt=10
 
 # Declare model variables
 x1 = MX.sym('x1')
@@ -18,7 +17,8 @@ u1 = MX.sym('u1') #capacity percentage DG
 u2 = MX.sym('u2') #capacity percentage boiler
 u3 = MX.sym('u3') #percentage of total mass flow flowing into DG
 u4 = MX.sym('u4') #percentage of total mass flow flowing into boiler
-u= vertcat(u1,u2,u3,u4)
+u5 = MX.sym('u5') #Decisioni variable for the curtailed pv, "removing" excess pv power so battery does not get too much powah
+u= vertcat(u1,u2,u3,u4,u5)
 
 #Parameters in my system
 cp=4.186 # Joule/(gram*degree celcius) = kJoule/kg*degree celcius
@@ -58,8 +58,8 @@ t_in_tes_ratio = u4*x2 + t_mix_ratio*(1-u4) #viktig at det ikke bare er x1(1-u4)
 beta=4 #this can also be chaaaanged
 #pw=55 #kw just guessing for now
 pl=80 #kw, this is what the hotel/house needs
-ppv=60 #an example for now, will irl vary more
-pcurt <= ppv
+ppv=110#60 #an example for now, will irl vary more
+pcurt =u5*ppv
 #pel=q_BOILER/0.98
 pel=(u2*B_MAX_HEAT)/0.98
 pd=u1*DG_el
@@ -76,12 +76,12 @@ xdot= vertcat((cp*u3*w_tot*(x4-x1)*90 + q_DG-q_loss)/(rho*c_dg_heatcap*V_dg*90),
 
 
 #weighing of the different components of the objective function...
-c_X3=20.5 
+c_X3=25.5 
 c_x1=0.0
 c_x2=0.0
 
 c_boiler=0.1
-c_co2=0.1 #seeing what the temperatures end up with now
+c_co2=0.11 #seeing what the temperatures end up with now
 #reference temperatures to ensure high enough temperature in the "house", still don't know what these bounds should be...
 x3_ref=65.0/90
 x1_ref=75.0/90
@@ -106,7 +106,7 @@ else:
    DT = T/N/M #dette er time-step 
    f = Function('f', [x, u], [xdot, L]) #f(xk,uk), dette er funksjoin man vil integrere, ender opp med x_dot og L
    X0 = MX.sym('X0', 5) #init state,
-   U = MX.sym('U', 4) #sier her at det er fire u-er!!!
+   U = MX.sym('U', 5) #sier her at det er fire u-er!!!
    X = X0
    Q = 0
    for j in range(M): #mer nøyaktig versjon, er runge kutta 4, de ulike k-likningene osv, her finner vi neste state
@@ -154,12 +154,12 @@ pcurt_values = []
 # Formulate the NLP
 for k in range(N):
     # New NLP variable for the control
-    Uk = MX.sym('U_' + str(k), 4) # have to put ,4 in this formulation????????????????????????????????????????????????????
+    Uk = MX.sym('U_' + str(k), 5) # have to put ,4 in this formulation????????????????????????????????????????????????????
     w   += [Uk]
-    lbw += [0,0,0,0] #dette er grensene for u (here it is taken into account that there ar 4 u's)
-    ubw += [1,1,1,1] #w er decision variable, xuuuxuxuxu #trying to see if u gets bigger now
+    lbw += [0,0,0,0,0] #dette er grensene for u (here it is taken into account that there ar 4 u's)
+    ubw += [1,1,1,1,1] #w er decision variable, xuuuxuxuxu #trying to see if u gets bigger now
     
-    w0  += [0,0,0,0]
+    w0  += [0,0,0,0,0]
 
     # Integrate till the end of the interval
     Fk = F(x0=Xk, p=Uk) #x-en på slutt av første intervalll
@@ -202,25 +202,26 @@ sol = solver(x0=w0, lbx=lbw, ubx=ubw, lbg=lbg, ubg=ubg)
 w_opt = sol['x'].full().flatten()
 
 # Plot the solution, sånn henter man ut variablene
-x1_opt = w_opt[0::9]
-x2_opt = w_opt[1::9]
-x3_opt = w_opt[2::9]
-x4_opt = w_opt[3::9]
-x5_opt = w_opt[4::9] #here is the battery state mehhhhh
-u1_opt = w_opt[5::9]
-u2_opt = w_opt[6::9]
-u3_opt = w_opt[7::9]
-u4_opt = w_opt[8::9]
+x1_opt = w_opt[0::10]
+x2_opt = w_opt[1::10]
+x3_opt = w_opt[2::10]
+x4_opt = w_opt[3::10]
+x5_opt = w_opt[4::10] #here is the battery state mehhhhh
+u1_opt = w_opt[5::10]
+u2_opt = w_opt[6::10]
+u3_opt = w_opt[7::10]
+u4_opt = w_opt[8::10]
+u5_opt = w_opt[9::10]
 
 #pel=(u2*B_MAX_HEAT)/0.98
 #pd=u1*DG_el
 
 for i in range(N):
-    pb_values.append(ppv+DG_el*u1_opt[i]-(u2_opt[i]*B_MAX_HEAT)/0.98-pl -pcurt)
+    pb_values.append(ppv+(DG_el*u1_opt[i])-(u2_opt[i]*B_MAX_HEAT)/0.98-pl -(ppv*u5_opt[i]))
     pel_values.append((B_MAX_HEAT*u2_opt[i])/0.98)
     pd_values.append(u1_opt[i]*DG_el)
     ppv_values.append(ppv)
-    pcurt_values.append(pcurt)
+    pcurt_values.append(ppv*u5_opt[i])
     pl_values.append(pl)
 
 
@@ -256,9 +257,10 @@ plt.step(t_values/(60*60), vertcat(DM.nan(1), u1_opt), '-.') #her i plottingen k
 plt.step(t_values/(60*60), vertcat(DM.nan(1), u2_opt), '-.') #prøver å få plotta alle u-ene, får se hva som skjer...
 plt.step(t_values/(60*60), vertcat(DM.nan(1), u3_opt), '-.')
 plt.step(t_values/(60*60), vertcat(DM.nan(1), u4_opt), '-.')
+plt.step(t_values/(60*60), vertcat(DM.nan(1), u5_opt), '--')
 plt.ylabel('Percentage')
 plt.xlabel('T: hours')
-plt.legend(['u1:power_%_DG','u2:power_%_boiler','u3:%_mass_flow_DG','u4:%_mass_flow_boiler'])
+plt.legend(['u1:power_%_DG','u2:power_%_boiler','u3:%_mass_flow_DG','u4:%_mass_flow_boiler','u5: ppv curtailed'])
 #plt.grid()
 #plt.show()
 
