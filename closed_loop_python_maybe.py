@@ -205,34 +205,25 @@ for i in range(N):
     sol = solver(x0=w0, lbx=lbw, ubx=ubw, lbg=lbg, ubg=ubg) ###################
     w_opt = sol['x'].full().flatten()
     print("w_opt før u_guess: ", len(w_opt),w_opt[0:29])
-    #TRYING A NEW U-guess!!!!
-    #u-guess=w_opt[0:3]
+  
     u_guess = w_opt[: num_controls * N].reshape(N, num_controls).T 
-    #print("u_guess consisting of w_opt: ", len(u_guess),u_guess)
+   
    
     x_guess = w_opt[num_controls * N :].reshape(N + 1, num_states).T
-    #print("x_guess consisting of w_opt",len(x_guess),x_guess)
-    
-    #print("New final state results, x_guess", len(x_guess.T[0]), x_guess.T[0])
+   
     print(w_opt[4:8])
     #This is the correct u_guess!!!!!
     control_results.append(w_opt[4:8]) 
-    #control_results.append(u_guess[:,0]) #her er det fire stykker men de ser jo like ut og endres ikke så ye
-    #print("Type of x0_init:", type(x0_init), x0_init)
-    #print("Type of u_guess:", type(u_guess[:, 0]),u_guess[:, 0])
+    
     plantd_next=plant(x0_init,w_opt[4:8], F)
 
     x0_init=np.array(plantd_next).flatten() #to get x0_init on the right format as a [ 1 2 3]
-    #final_state_results.append(x0_init)
-    #u_guess_0=u_guess[:, :4][0]
+    
     u_guess_0=w_opt[4:8]
-    #print("Type of x0_init:", type(x0_init), x0_init)
-    #print("Type of u_guess:", type(u_guess[:, :4][0]),u_guess[:, :4][0])
-    #se om oppdateringen er riktig!!!
+    
     w0=update_wo(u_guess_0,x0_init)
     lbw,ubw= update_lbw_ubw(x0_init)
-    #print("parts of w0 during loop: ", w0)
-    #print("Here is the newest w0: ", w0)
+   
 #print("W0 after the last forloop: ", len(w0), w0)  
 ########################################################################################
 
