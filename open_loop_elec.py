@@ -8,9 +8,9 @@ N = 144 # number of control intervals ten minutes in hourform
 def get_ppv():
     for k in range(N):
         if k<70:
-            ppv=110
+            ppv=100
         else:
-            ppv=10
+            ppv=50
         return ppv
     
 
@@ -28,6 +28,21 @@ u4 = MX.sym('u4') #percentage of total mass flow flowing into boiler
 u5 = MX.sym('u5') #Decisioni variable for the curtailed pv, "removing" excess pv power so battery does not get too much powah
 u6 = MX.sym('u6') #decision variable to control pb
 u= vertcat(u1,u2,u3,u4,u5,u6)
+
+#A symbolic vector of the data of ppv power production
+Data_ppv = MX.sym('Data_ppv', N)
+#Data_ppv[:n_first] = 100
+#Data_ppv[n_first:] = 50
+Data_ppv_values = []
+#For plotting: have not figured it out thoooooo
+for i in range(N):
+    if i<70:
+        Data_ppv_values.append(100)
+    else: Data_ppv_values.append(50)
+
+#print(np.array(v_list)) 
+np_D_ppv=np.array(Data_ppv_values)
+
 
 #Parameters in my system
 cp=4.186 # Joule/(gram*degree celcius) = kJoule/kg*degree celcius
@@ -88,7 +103,7 @@ xdot= vertcat((cp*u3*w_tot*(x4-x1)*90 + q_DG-q_loss)/(rho*c_dg_heatcap*V_dg*90),
 
 
 #weighing of the different components of the objective function...
-c_X3=25.5 
+c_X3=10.5 
 c_x1=0.0
 c_x2=0.0
 c_powerbalance= 500.0
@@ -194,27 +209,16 @@ for k in range(N):
     #både equality og inequality constraints havner her, om ubegrenset: upper bound uendelig for eksempel
     lbg += [0, 0, 0, 0, 0]
     ubg += [0, 0, 0, 0, 0] #changed this from [0,0,0] and it now evaluates objective function more times...
-    if k<70:
-        ppv=110
-    else:ppv=10
-    
-     
-
-#pb_values.append(f(X[0::5]))
-#print("here is pb_values: ", pb_values, "here is the type: ",type(pb_values))
-
-
-#print(" Anothe one, np_pb: ",np_pb," the type of it: ", type(np_pb), "length: ",len(np_pb))
+    ppv=np_D_ppv[k]
 
     
 
 # Create an NLP solver
-prob = {'f': J, 'x': vertcat(*w), 'g': vertcat(*g)} #kom tilbake til parametere som varierer, om de inngår i difflikningene
+#MPC = {"f": self.J, "x": self.w, "g": vertcat(*self.g), "p": self.Data}
+prob = {'f': J, 'x': vertcat(*w), 'g': vertcat(*g), 'p': Data_ppv} #how do I now look through the Data_ppv/use it??? 
 solver = nlpsol('solver', 'ipopt', prob);
-#print("here is length w0: ",len(w0),"here is length lbw: ",len(lbw), "here is length ubw: ", len(ubw), "here is length lbg: ",len(lbg),"here is length ubg: ",len(ubg))
-
 # Solve the NLP, den initialiseres
-sol = solver(x0=w0, lbx=lbw, ubx=ubw, lbg=lbg, ubg=ubg)
+sol = solver(x0=w0, lbx=lbw, ubx=ubw, lbg=lbg, ubg=ubg,p=np_D_ppv) #Now added the PPV data values as a parmeter here too
 w_opt = sol['x'].full().flatten()
 
 # Plot the solution, sånn henter man ut variablene
@@ -230,14 +234,8 @@ u4_opt = w_opt[8::11]
 u5_opt = w_opt[9::11]
 u6_opt = w_opt[10::11]
 
-#pel=(u2*B_MAX_HEAT)/0.98
-#pd=u1*DG_el
-#ppv=get_ppv()
 for i in range(N):
-    if i<70:
-        ppv=110
-    else: 
-        ppv=10
+    ppv=np_D_ppv[i]
     pb_values.append(u6_opt[i]*Battery_max)
     pel_values.append((BOILER_MAX_HEAT*u2_opt[i])/0.98)
     pd_values.append(u1_opt[i]*DG_el)
@@ -255,6 +253,9 @@ np_ppv=np.array(ppv_values)
 np_pcurt=np.array(pcurt_values)
 np_powerbal=np.array(powerbal_values)
 print('Here are the values of the powerbalance: ', np_powerbal)
+
+
+
 
 
 tgrid = [T/N*k for k in range(N+1)]
@@ -304,3 +305,5 @@ plt.legend(['pb: power in/out of batttery','pcurt: curtailed PV power','pel: pow
             , 'pd:power prod Diesel', 'pl: power used Isfjorden','ppv: power prod PV', 'powerbalance,0 ideally'])
 plt.grid()
 plt.show()
+
+
