@@ -31,10 +31,8 @@ u= vertcat(u1,u2,u3,u4,u5,u6)
 
 #A symbolic vector of the data of ppv power production
 Data_ppv = MX.sym('Data_ppv', N)
-#Data_ppv[:n_first] = 100
-#Data_ppv[n_first:] = 50
+
 Data_ppv_values = []
-#For plotting: have not figured it out thoooooo
 for i in range(N):
     if i<70:
         Data_ppv_values.append(100)
@@ -83,22 +81,23 @@ t_in_tes_ratio = u4*x2 + t_mix_ratio*(1-u4) #viktig at det ikke bare er x1(1-u4)
 beta=  111.94 # 403*1000/(60*60), should be correct #4 #this can also be chaaaanged 
 #pw=55 #kw just guessing for now
 pl=90 #kw, this is what the hotel/house needs
-ppv=get_ppv()
-pcurt =u5*ppv
-#pel=q_BOILER/0.98
-pel=(u2*BOILER_MAX_HEAT)/0.98
-pd=u1*DG_el
-pb=u6*Battery_max
-##################Hvordan definere dette annerledes?!?!?!?!?!?!?!?!?!?!?!?!?!?!?!?!?!?!?!?!?!?!?!?!?!?!?!?
-Powerbalace = pb+ ppv+pd-pel-pl -pcurt
-###################################### NEW """"""###############################################
-xdot= vertcat((cp*u3*w_tot*(x4-x1)*90 + q_DG-q_loss)/(rho*c_dg_heatcap*V_dg*90),
-               (cp*u4*w_tot*(t_mix_ratio-x2)*90 -q_loss + q_BOILER)/(rho*c_dg_heatcap*V_boiler*90),
-                  (cp*w_tot*(t_in_tes_ratio - x3)*90 -q_loss)/(rho*V_tes*c_tes*90),
-                   (cp*w_tot*(x3-x4)*90 - q_rad - q_loss)/(rho*c_dg_heatcap*V_rad*90),
-                   ##### NNNNEEEEEEWWWW###############################
-                   (pb/beta)) #this most likely needs to be scaled mehhhhhhhhhhhhhhhhhhhhhh
-###################### NEW #################################################################
+for i in range (N):
+    ppv=np_D_ppv[i]
+    pcurt =u5*ppv
+    #pel=q_BOILER/0.98
+    pel=(u2*BOILER_MAX_HEAT)/0.98
+    pd=u1*DG_el
+    pb=u6*Battery_max
+    ##################Hvordan definere dette annerledes?!?!?!?!?!?!?!?!?!?!?!?!?!?!?!?!?!?!?!?!?!?!?!?!?!?!?!?
+    Powerbalace = pb+ ppv+pd-pel-pl -pcurt
+    ###################################### NEW """"""###############################################
+    xdot= vertcat((cp*u3*w_tot*(x4-x1)*90 + q_DG-q_loss)/(rho*c_dg_heatcap*V_dg*90),
+                (cp*u4*w_tot*(t_mix_ratio-x2)*90 -q_loss + q_BOILER)/(rho*c_dg_heatcap*V_boiler*90),
+                    (cp*w_tot*(t_in_tes_ratio - x3)*90 -q_loss)/(rho*V_tes*c_tes*90),
+                    (cp*w_tot*(x3-x4)*90 - q_rad - q_loss)/(rho*c_dg_heatcap*V_rad*90),
+                    ##### NNNNEEEEEEWWWW###############################
+                    (pb/beta)) #this most likely needs to be scaled mehhhhhhhhhhhhhhhhhhhhhh
+    ###################### NEW #################################################################
 
 
 
@@ -117,7 +116,7 @@ x2_ref=75.0/90
 
 #added objective term to punish the powerbalance!!!!!!
 # Objective term -> uttrykk for cost-funksjon
-L= u1**2*c_co2  + c_X3*(x3-x3_ref)**2 + c_boiler*u2**2  + c_x1*(x1-x1_ref)**2 + c_x2*(x2-x2_ref)**2  +c_powerbalance*Powerbalace**2 +c_curt*u5**2#+ u3**2*c_co2 + u4**2*c_boiler
+L= u1**2*c_co2  + c_X3*(x3-x3_ref)**2 + c_boiler*u2**2  + c_x1*(x1-x1_ref)**2 + c_x2*(x2-x2_ref)**2  +c_powerbalance*Powerbalace**2 #+c_curt*u5**2#+ u3**2*c_co2 + u4**2*c_boiler
 #-u3**2 -u4**2# u3 og u4 er for å se om det går noenting gjennom der nå...
 #here in the objective function, the usage of the DG and boiler is punished, but not the water flowing through
 #I think this makes sense, but might need to be looked at...
@@ -209,6 +208,7 @@ for k in range(N):
     #både equality og inequality constraints havner her, om ubegrenset: upper bound uendelig for eksempel
     lbg += [0, 0, 0, 0, 0]
     ubg += [0, 0, 0, 0, 0] #changed this from [0,0,0] and it now evaluates objective function more times...
+    #MIIIIIIP PPV:::::::
     ppv=np_D_ppv[k]
 
     
@@ -222,24 +222,24 @@ sol = solver(x0=w0, lbx=lbw, ubx=ubw, lbg=lbg, ubg=ubg,p=np_D_ppv) #Now added th
 w_opt = sol['x'].full().flatten()
 
 # Plot the solution, sånn henter man ut variablene
-x1_opt = w_opt[0::11]
-x2_opt = w_opt[1::11]
-x3_opt = w_opt[2::11]
-x4_opt = w_opt[3::11]
+x1_opt = w_opt[0::11] #temp dg
+x2_opt = w_opt[1::11] #temp boiler
+x3_opt = w_opt[2::11] #temp tes
+x4_opt = w_opt[3::11] #temp after house
 x5_opt = w_opt[4::11] #here is the battery state mehhhhh
-u1_opt = w_opt[5::11]
-u2_opt = w_opt[6::11]
-u3_opt = w_opt[7::11]
-u4_opt = w_opt[8::11]
-u5_opt = w_opt[9::11]
-u6_opt = w_opt[10::11]
+u1_opt = w_opt[5::11] #dg power percentage
+u2_opt = w_opt[6::11] #elboil power percentage
+u3_opt = w_opt[7::11] # mass flow into dg
+u4_opt = w_opt[8::11] #mass flow into boiler
+u5_opt = w_opt[9::11] #ppv_curtailed
+u6_opt = w_opt[10::11] #pb
 
 for i in range(N):
     ppv=np_D_ppv[i]
     pb_values.append(u6_opt[i]*Battery_max)
     pel_values.append((BOILER_MAX_HEAT*u2_opt[i])/0.98)
     pd_values.append(u1_opt[i]*DG_el)
-    ppv_values.append(ppv)
+    #ppv_values.append(ppv)
     pcurt_values.append(ppv*u5_opt[i])
     pl_values.append(pl)
     powerbal_values.append(u6_opt[i]*Battery_max+ ppv+u1_opt[i]*DG_el-(BOILER_MAX_HEAT*u2_opt[i])/0.98 - pl -ppv*u5_opt[i])
@@ -249,7 +249,7 @@ np_pb=np.array(pb_values)
 np_pl=np.array(pl_values)
 np_pd=np.array(pd_values)
 np_pel=np.array(pel_values)
-np_ppv=np.array(ppv_values)
+#np_ppv=np.array(ppv_values)
 np_pcurt=np.array(pcurt_values)
 np_powerbal=np.array(powerbal_values)
 print('Here are the values of the powerbalance: ', np_powerbal)
@@ -297,7 +297,7 @@ plt.plot(t_vals_pbosv/(60*60),np_pcurt, '--')
 plt.plot(t_vals_pbosv/(60*60),np_pel, '-')
 plt.plot(t_vals_pbosv/(60*60),np_pd,'.-')
 plt.plot(t_vals_pbosv/(60*60),np_pl,'.-' )
-plt.plot(t_vals_pbosv/(60*60), np_ppv, '-.')
+plt.plot(t_vals_pbosv/(60*60), np_D_ppv, '-.')
 plt.plot(t_vals_pbosv/(60*60), np_powerbal, '-.')
 plt.ylabel('Power in kW')
 plt.xlabel('T: hours')
