@@ -30,7 +30,7 @@ u6 = MX.sym('u6') #decision variable to control pb
 u= vertcat(u1,u2,u3,u4,u5,u6)
 
 #A symbolic vector of the data of ppv power production
-Data_ppv = MX.sym('Data_ppv', N)
+ppv = MX.sym('ppv')
 
 Data_ppv_values = []
 for i in range(N):
@@ -81,45 +81,47 @@ t_in_tes_ratio = u4*x2 + t_mix_ratio*(1-u4) #viktig at det ikke bare er x1(1-u4)
 beta=  111.94 # 403*1000/(60*60), should be correct #4 #this can also be chaaaanged 
 #pw=55 #kw just guessing for now
 pl=90 #kw, this is what the hotel/house needs
-for i in range (N):
-    ppv=np_D_ppv[i]
-    pcurt =u5*ppv
-    #pel=q_BOILER/0.98
-    pel=(u2*BOILER_MAX_HEAT)/0.98
-    pd=u1*DG_el
-    pb=u6*Battery_max
-    ##################Hvordan definere dette annerledes?!?!?!?!?!?!?!?!?!?!?!?!?!?!?!?!?!?!?!?!?!?!?!?!?!?!?!?
-    Powerbalace = pb+ ppv+pd-pel-pl -pcurt
-    ###################################### NEW """"""###############################################
-    xdot= vertcat((cp*u3*w_tot*(x4-x1)*90 + q_DG-q_loss)/(rho*c_dg_heatcap*V_dg*90),
-                (cp*u4*w_tot*(t_mix_ratio-x2)*90 -q_loss + q_BOILER)/(rho*c_dg_heatcap*V_boiler*90),
-                    (cp*w_tot*(t_in_tes_ratio - x3)*90 -q_loss)/(rho*V_tes*c_tes*90),
-                    (cp*w_tot*(x3-x4)*90 - q_rad - q_loss)/(rho*c_dg_heatcap*V_rad*90),
-                    ##### NNNNEEEEEEWWWW###############################
-                    (pb/beta)) #this most likely needs to be scaled mehhhhhhhhhhhhhhhhhhhhhh
-    ###################### NEW #################################################################
+
+    
+pcurt =u5*ppv
+#pel=q_BOILER/0.98
+pel=(u2*BOILER_MAX_HEAT)/0.98
+pd=u1*DG_el
+pb=u6*Battery_max
+##################Hvordan definere dette annerledes?!?!?!?!?!?!?!?!?!?!?!?!?!?!?!?!?!?!?!?!?!?!?!?!?!?!?!?
+Powerbalace = pb+ ppv+pd-pel-pl -pcurt
+###################################### NEW """"""###############################################
+xdot= vertcat((cp*u3*w_tot*(x4-x1)*90 + q_DG-q_loss)/(rho*c_dg_heatcap*V_dg*90),
+            (cp*u4*w_tot*(t_mix_ratio-x2)*90 -q_loss + q_BOILER)/(rho*c_dg_heatcap*V_boiler*90),
+                (cp*w_tot*(t_in_tes_ratio - x3)*90 -q_loss)/(rho*V_tes*c_tes*90),
+                (cp*w_tot*(x3-x4)*90 - q_rad - q_loss)/(rho*c_dg_heatcap*V_rad*90),
+                ##### NNNNEEEEEEWWWW###############################
+                (pb/beta)) #this most likely needs to be scaled mehhhhhhhhhhhhhhhhhhhhhh
+###################### NEW #################################################################
 
 
 
 #weighing of the different components of the objective function...
-c_X3=10.5 
-c_x1=0.0
-c_x2=0.0
-c_powerbalance= 500.0
-c_boiler=0.1
-c_curt=0.1
+#c_x1=0.0
+#c_x2=0.0
+c_X3=20.5 
+
 c_co2=0.11 #seeing what the temperatures end up with now
+c_boiler=0.1
+c_u3=0.01
+c_u4=0.01
+c_curt=0.01
+c_pb = 0.01
+c_powerbalance= 30.0
 #reference temperatures to ensure high enough temperature in the "house", still don't know what these bounds should be...
-x3_ref=65.0/90
-x1_ref=75.0/90
-x2_ref=75.0/90
+x3_ref=66.0/90
+#x1_ref=75.0/90
+#x2_ref=75.0/90
 
 #added objective term to punish the powerbalance!!!!!!
 # Objective term -> uttrykk for cost-funksjon
-L= u1**2*c_co2  + c_X3*(x3-x3_ref)**2 + c_boiler*u2**2  + c_x1*(x1-x1_ref)**2 + c_x2*(x2-x2_ref)**2  +c_powerbalance*Powerbalace**2 #+c_curt*u5**2#+ u3**2*c_co2 + u4**2*c_boiler
-#-u3**2 -u4**2# u3 og u4 er for å se om det går noenting gjennom der nå...
-#here in the objective function, the usage of the DG and boiler is punished, but not the water flowing through
-#I think this makes sense, but might need to be looked at...
+L= u1**2*c_co2  + c_X3*(x3-x3_ref)**2 + c_boiler*u2**2 + c_powerbalance*Powerbalace**2 + c_pb*u6**2 + c_curt*u5**2 + c_u3*u3**2 + c_u4*u4**2   
+
 
 
 # Formulate discrete time dynamics|
@@ -131,28 +133,30 @@ else:
    # Fixed step Runge-Kutta 4 integrator
    M = 4 # RK4 steps per interval
    DT = T/N/M #dette er time-step 
-   f = Function('f', [x, u], [xdot, L]) #f(xk,uk), dette er funksjoin man vil integrere, ender opp med x_dot og L
+   f = Function('f', [x, u, ppv], [xdot, L]) #f(xk,uk), dette er funksjoin man vil integrere, ender opp med x_dot og L
    X0 = MX.sym('X0', 5) #init state,
    U = MX.sym('U', 6) #sier her at det er fire u-er!!!
+   PPV = MX.sym('PPV',1)
    X = X0
    Q = 0
    for j in range(M): #mer nøyaktig versjon, er runge kutta 4, de ulike k-likningene osv, her finner vi neste state
-       k1, k1_q = f(X, U)
-       k2, k2_q = f(X + DT/2 * k1, U)
-       k3, k3_q = f(X + DT/2 * k2, U)
-       k4, k4_q = f(X + DT * k3, U)
+       k1, k1_q = f(X, U, PPV)
+       k2, k2_q = f(X + DT/2 * k1, U, PPV)
+       k3, k3_q = f(X + DT/2 * k2, U, PPV)
+       k4, k4_q = f(X + DT * k3, U, PPV)
        X=X+DT/6*(k1 +2*k2 +2*k3 +k4)
        Q = Q + DT/6*(k1_q + 2*k2_q + 2*k3_q + k4_q)
-   F = Function('F', [X0, U], [X, Q],['x0','p'],['xf','qf']) #xf: x final, Qf : final cost, F er integralet av f
+   F = Function('F', [X0, U, PPV], [X, Q],['x0','p','ppv'],['xf','qf']) #xf: x final, Qf : final cost, F er integralet av f
 
 # Evaluate at a test point
-Fk = F(x0=[62.0/90, 62.0/90, 62.0/90, 62.0/90,62.0/90 ],p=0.4) #tror dette er startpunkt men må sjekke ut?
+#Fk = F(x0=[62.0/90, 62.0/90, 62.0/90, 62.0/90,62.0/90 ],p=0.4) #tror dette er startpunkt men må sjekke ut?
 #Fk = F(x0=[0.2,0.3,],p=0.4)
-print(Fk['xf'])
-print(Fk['qf'])
+#print(Fk['xf'])
+#print(Fk['qf'])
 
 # Start with an empty NLP, initialiserer et tom nlp for å bruke multiple shooting
 w=[]
+wPPV = []
 w0 = []
 lbw = []
 ubw = []
@@ -188,9 +192,10 @@ for k in range(N):
     ubw += [1,1,1,1,1,1] #w er decision variable, xuuuxuxuxu #trying to see if u gets bigger now
     
     w0  += [0,0,0,0,0,0]
-
+    PPVk= MX.sym('PPV_' + str(k),1)
+    wPPV += [PPVk]
     # Integrate till the end of the interval
-    Fk = F(x0=Xk, p=Uk) #x-en på slutt av første intervalll
+    Fk = F(x0=Xk, p=Uk,ppv=PPVk) #x-en på slutt av første intervalll
     Xk_end = Fk['xf']
     J=J+Fk['qf'] #inkrementerer cost
 
@@ -208,14 +213,13 @@ for k in range(N):
     #både equality og inequality constraints havner her, om ubegrenset: upper bound uendelig for eksempel
     lbg += [0, 0, 0, 0, 0]
     ubg += [0, 0, 0, 0, 0] #changed this from [0,0,0] and it now evaluates objective function more times...
-    #MIIIIIIP PPV:::::::
-    ppv=np_D_ppv[k]
+    
 
     
 
 # Create an NLP solver
 #MPC = {"f": self.J, "x": self.w, "g": vertcat(*self.g), "p": self.Data}
-prob = {'f': J, 'x': vertcat(*w), 'g': vertcat(*g), 'p': Data_ppv} #how do I now look through the Data_ppv/use it??? 
+prob = {'f': J, 'x': vertcat(*w), 'g': vertcat(*g), 'p': vertcat(*wPPV)} #how do I now look through the Data_ppv/use it??? 
 solver = nlpsol('solver', 'ipopt', prob);
 # Solve the NLP, den initialiseres
 sol = solver(x0=w0, lbx=lbw, ubx=ubw, lbg=lbg, ubg=ubg,p=np_D_ppv) #Now added the PPV data values as a parmeter here too
@@ -256,8 +260,6 @@ print('Here are the values of the powerbalance: ', np_powerbal)
 
 
 
-
-
 tgrid = [T/N*k for k in range(N+1)]
 t_values = np.linspace(0, T, N+1)  # Adjusted initialization
 #print("LENGTH OF TVALUSS: ", len(t_values))
@@ -281,7 +283,7 @@ plt.step(t_values/(60*60), vertcat(DM.nan(1), u2_opt), '-.') #prøver å få plo
 plt.step(t_values/(60*60), vertcat(DM.nan(1), u3_opt), '-.')
 plt.step(t_values/(60*60), vertcat(DM.nan(1), u4_opt), '-.')
 plt.step(t_values/(60*60), vertcat(DM.nan(1), u5_opt), '--')
-plt.step(t_values/(60*60), vertcat(DM.nan(1), u6_opt), '--')
+plt.step(t_values/(60*60), vertcat(DM.nan(1), u6_opt*100), '--')
 #print('here is u6_opt lezzgo: ',u6_opt)
 
 plt.ylabel('Percentage')
@@ -292,8 +294,8 @@ plt.legend(['u1:power_%_DG','u2:power_%_boiler','u3:%_mass_flow_DG','u4:%_mass_f
 
 plt.figure(3)
 #plotting the new state and scaling mehhhh
-plt.plot(t_vals_pbosv/(60*60), np_pb, '.' )
-plt.plot(t_vals_pbosv/(60*60),np_pcurt, '--')
+plt.plot(t_vals_pbosv/(60*60), np_pb*300, '.' )
+plt.plot(t_vals_pbosv/(60*60),np_pcurt*10000, '--')
 plt.plot(t_vals_pbosv/(60*60),np_pel, '-')
 plt.plot(t_vals_pbosv/(60*60),np_pd,'.-')
 plt.plot(t_vals_pbosv/(60*60),np_pl,'.-' )
