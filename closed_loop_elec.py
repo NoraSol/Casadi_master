@@ -109,12 +109,13 @@ def params_xdot():
     #added objective term to punish the powerbalance!!!!!!
     # Objective term -> uttrykk for cost-funksjon
     L= u1**2*c_co2  + c_X3*(x3-x3_ref)**2 + c_boiler*u2**2 + c_powerbalance*Powerbalace**2 + c_pb*u6**2 + c_curt*u5**2 + c_u3*u3**2 + c_u4*u4**2
-    return xdot,L
+    return xdot,L,Powerbalace
 
 def rk4():
      # Fixed step Runge-Kutta 4 integrator
    x_dot=params_xdot()[0]
    L=params_xdot()[1]
+   Powerbalace=params_xdot()[2]
    M = 4 # RK4 steps per interval
    DT = T/N/M #dette er time-step 
    f = Function('f', [x, u, ppv], [x_dot,L ]) #f(xk,uk), dette er funksjoin man vil integrere, ender opp med x_dot og L
@@ -133,8 +134,8 @@ def rk4():
    F = Function('F', [X0, U, PPV], [X, Q],['x0','p', 'ppv'],['xf','qf']) #xf: x final, Qf : final cost, F er integralet av f
    return F
 
-def plant(x0,u_current, F): #take in F intead of calling on the rk4() all the time
-   F_new=F(x0=x0,p=u_current) #should not have to do the brackets for p
+def plant(x0,u_current, PPV,F): #take in F intead of calling on the rk4() all the time
+   F_new=F(x0=x0,p=u_current,ppv=PPV) #should not have to do the brackets for p
    return F_new["xf"] #this is to not struggle with the wrong format and only get the state values
 
 # Formulate discrete time dynamics|
@@ -246,6 +247,7 @@ x_guess = np.array(w0[num_controls * N :]).reshape(N + 1, num_states).T
 
 # Solve the NLP
 for i in range(N):
+    ppv=np_D_ppv[i] #does this even help???
     final_state_results.append(x0_init) 
     #solver skal ha lengdte på 1156 inn som w0,lbw og ubw, mens lbg og ubg skal ha leNgde 576
     sol = solver(x0=w0, lbx=lbw, ubx=ubw, lbg=lbg, ubg=ubg, p=np_D_ppv) ###################
@@ -256,7 +258,9 @@ for i in range(N):
     #print(w_opt[4:8])
     #control_results.append(w_opt[4:8]) 
     control_results.append(w_opt[5:11] )# Need to check this out: 6 u's so think this is the first control input to implement!
-    plantd_next=plant(x0_init,w_opt[5:11], F)
+    #THIS THE MISSING PART OF PPV?
+    plantd_next=plant(x0_init,w_opt[5:11], np_D_ppv[i],F)
+    #THIS THE MISSING PART OF PPV?
     x0_init=np.array(plantd_next).flatten() #to get x0_init on the right format as a [ 1 2 3]
     u_guess_0=w_opt[5:11]
     w0=update_wo(u_guess_0,x0_init)
@@ -333,23 +337,14 @@ t_vals_pbosv = np.linspace(0, T, N)
 import matplotlib.pyplot as plt
 plt.figure(1)
 plt.clf()
-
-
 plt.plot(tgrid, x1_done_np*90, '--')
-  
 plt.plot(tgrid, x2_done_np*90, '-')
-
 plt.plot(tgrid,x3_done_np*90, '.')
-
 plt.plot(tgrid,x4_done_np*90, '-')
-
 plt.plot(tgrid,x5_done_np*90, '-')
-
-
 plt.xlabel('T: hours')
-plt.ylabel('Water Temperature degrees celcius')
+plt.ylabel('Water Temperature degrees celcius/battery percentage')
 plt.legend(['x1:temp water dg','x2:temp water boiler','x3:temp water tes','x4:temp water ahouse', 'x5: Battery percentage'])
-
 
 # Plotting
 plt.figure(2)

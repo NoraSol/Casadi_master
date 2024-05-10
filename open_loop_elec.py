@@ -57,10 +57,7 @@ V_rad = 1000
 w_tot= 2 # 2l/s
 #in the last system several of the power-funtions were functions of t, how to do this descrete?
 q_loss= 0.1
-
-def q_sorad(): 
-    return 14.0 ## to get it from minutes to seconds!!!
-q_rad=q_sorad() #defining heat being used in the house...
+q_rad=14.0 #kW
 
 #defining the heat that the DG returns when on (being used at 70%): 
 DG_heat = 22.0 # kW heat kiloJoule/s ##########BECAUSE SAMPLING EVERY TEN MINUTES!
