@@ -33,7 +33,7 @@ u= vertcat(u1,u2,u3,u4,u5,u6)
 ppv = MX.sym('ppv')
 
 Data_ppv_values = []
-for i in range(N):
+for i in range(2*N):
     if i<70:
         Data_ppv_values.append(100)
     else: Data_ppv_values.append(50)
@@ -248,9 +248,10 @@ x_guess = np.array(w0[num_controls * N :]).reshape(N + 1, num_states).T
 # Solve the NLP
 for i in range(N):
     ppv=np_D_ppv[i] #does this even help???
+    mpc_ppv = np_D_ppv[i:i+N]
     final_state_results.append(x0_init) 
     #solver skal ha lengdte på 1156 inn som w0,lbw og ubw, mens lbg og ubg skal ha leNgde 576
-    sol = solver(x0=w0, lbx=lbw, ubx=ubw, lbg=lbg, ubg=ubg, p=np_D_ppv) ###################
+    sol = solver(x0=w0, lbx=lbw, ubx=ubw, lbg=lbg, ubg=ubg, p=mpc_ppv) ###################
     w_opt = sol['x'].full().flatten()
     print("w_opt før u_guess: ", len(w_opt),w_opt[0:29])
     u_guess = w_opt[: num_controls * N].reshape(N, num_controls).T 
