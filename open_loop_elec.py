@@ -81,8 +81,6 @@ t_in_tes_ratio = u4*x2 + t_mix_ratio*(1-u4) #viktig at det ikke bare er x1(1-u4)
 beta=  111.94 # 403*1000/(60*60), should be correct #4 #this can also be chaaaanged 
 #pw=55 #kw just guessing for now
 pl=90 #kw, this is what the hotel/house needs
-
-    
 pcurt =u5*ppv
 #pel=q_BOILER/0.98
 pel=(u2*BOILER_MAX_HEAT)/0.98
@@ -102,8 +100,6 @@ xdot= vertcat((cp*u3*w_tot*(x4-x1)*90 + q_DG-q_loss)/(rho*c_dg_heatcap*V_dg*90),
 
 
 #weighing of the different components of the objective function...
-#c_x1=0.0
-#c_x2=0.0
 c_X3=20.5 
 
 c_co2=0.11 #seeing what the temperatures end up with now
@@ -115,9 +111,6 @@ c_pb = 0.01
 c_powerbalance= 30.0
 #reference temperatures to ensure high enough temperature in the "house", still don't know what these bounds should be...
 x3_ref=66.0/90
-#x1_ref=75.0/90
-#x2_ref=75.0/90
-
 #added objective term to punish the powerbalance!!!!!!
 # Objective term -> uttrykk for cost-funksjon
 L= u1**2*c_co2  + c_X3*(x3-x3_ref)**2 + c_boiler*u2**2 + c_powerbalance*Powerbalace**2 + c_pb*u6**2 + c_curt*u5**2 + c_u3*u3**2 + c_u4*u4**2   
@@ -170,9 +163,9 @@ ubg = []
 Xk = MX.sym('X0', 5) #changed to three since we now have three x-es!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 w += [Xk]
 #lbw += [67.0, 66.5, 66.0, 53.0 ]  #init conditions!!!!!!!!!!!!!!
-lbw +=[62.0/90, 62/90, 62.0/90, 62.0/90, 62.0/100 ]
-ubw += [62.0/90, 62/90, 62.0/90, 62.0/90, 62.0/100 ]
-w0 += [62.0/90, 62.0/90, 62.0/90, 62.0/90, 62.0/100 ] #her begynner casaadi å søke, må være feasible!!!!, ikke del på null
+lbw +=[62.0/90, 62/90, 62.0/90, 62.0/90, 22.0/100 ]
+ubw += [62.0/90, 62/90, 62.0/90, 62.0/90, 22.0/100 ]
+w0 += [62.0/90, 62.0/90, 62.0/90, 62.0/90, 22.0/100 ] #her begynner casaadi å søke, må være feasible!!!!, ikke del på null
 
 pb_values = []
 pl_values = []
@@ -206,7 +199,7 @@ for k in range(N):
     #changed now to have more realistic limits, let's see!!
     lbw += [40.0/90, 40.0/90, 40.0/90, 30.0/90, 20.0/100 ] # temperatur av TES skal eeeeeeeeegt ikke gå lavere enn 65 men tester dette....
     ubw += [90.0/90, 90.0/90, 90.0/90, 90.0/90, 90.0/100 ]
-    w0 += [62.0/90, 62.0/90, 62.0/90, 62.0/90, 62.0/100 ]  #endret her til 78 på dg
+    w0 += [62.0/90, 62.0/90, 62.0/90, 62.0/90, 22.0/100 ]  #endret her til 78 på dg
   
     # Add equality constraint
     g   += [Xk_end-Xk] #blå minus rød fra video, multiple shoot constrainten!!! bruker g for vanlige constraints også
