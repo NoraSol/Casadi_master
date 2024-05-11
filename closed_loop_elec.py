@@ -40,6 +40,14 @@ for i in range(2*N):
 
 #print(np.array(v_list)) 
 np_D_ppv=np.array(Data_ppv_values)
+Data_ppv_values_plott = []
+for i in range(N):
+    if i<70:
+        Data_ppv_values_plott.append(100)
+    else: Data_ppv_values_plott.append(50)
+
+#print(np.array(v_list)) 
+np_D_ppv_plott=np.array(Data_ppv_values_plott)
 
 pb_values = []
 pl_values = []
@@ -253,7 +261,7 @@ for i in range(N):
     #solver skal ha lengdte på 1156 inn som w0,lbw og ubw, mens lbg og ubg skal ha leNgde 576
     sol = solver(x0=w0, lbx=lbw, ubx=ubw, lbg=lbg, ubg=ubg, p=mpc_ppv) ###################
     w_opt = sol['x'].full().flatten()
-    print("w_opt før u_guess: ", len(w_opt),w_opt[0:29])
+    #print("w_opt før u_guess: ", len(w_opt),w_opt[0:29])
     u_guess = w_opt[: num_controls * N].reshape(N, num_controls).T 
     x_guess = w_opt[num_controls * N :].reshape(N + 1, num_states).T
     #print(w_opt[4:8])
@@ -352,9 +360,9 @@ plt.figure(2)
 plt.plot(tgrid, u1_done_np, '--') 
 plt.plot(tgrid, u2_done_np, '-.') 
 plt.plot(tgrid, u3_done_np, '.') 
-plt.plot(tgrid, u4_done_np, '-') 
-plt.plot(tgrid, u5_done_np, '-')
-plt.plot(tgrid, u6_done_np*100, '-')
+plt.plot(tgrid, u4_done_np, '-.') 
+plt.plot(tgrid, u5_done_np, '-.')
+plt.plot(tgrid, u6_done_np*100, '-.')
 plt.xlabel('T: hours')
 plt.ylabel('Percentage')
 plt.legend(['u1:power_%_DG','u2:power_%_boiler','u3:%_mass_flow_DG','u4:%_mass_flow_boiler', 'u5: ppv curtailed','u6: pb'])
@@ -366,7 +374,7 @@ plt.plot(t_vals_pbosv/(60*60),np_pcurt*10000, '--')
 plt.plot(t_vals_pbosv/(60*60),np_pel, '-')
 plt.plot(t_vals_pbosv/(60*60),np_pd,'.-')
 plt.plot(t_vals_pbosv/(60*60),np_pl,'.-' )
-plt.plot(t_vals_pbosv/(60*60), np_D_ppv, '-.')
+plt.plot(t_vals_pbosv/(60*60), np_D_ppv_plott, '-.')
 plt.plot(t_vals_pbosv/(60*60), np_powerbal, '-.')
 plt.ylabel('Power in kW')
 plt.xlabel('T: hours')
