@@ -97,15 +97,15 @@ xdot= vertcat((cp*u3*w_tot*(x4-x1)*90 + q_DG-q_loss)/(rho*c_dg_heatcap*V_dg*90),
 
 
 #weighing of the different components of the objective function...
-c_X3=20.5 
+c_X3=1.3 
 
-c_co2=0.11 #seeing what the temperatures end up with now
-c_boiler=0.1
-c_u3=0.01
-c_u4=0.01
-c_curt=0.01
-c_pb = 0.01
-c_powerbalance= 30.0
+c_co2=0.0119 #seeing what the temperatures end up with now
+c_boiler=0.001
+c_u3=0.0011
+c_u4=0.0011
+c_curt=0.012
+c_pb = 0.6
+c_powerbalance= 0.055
 #reference temperatures to ensure high enough temperature in the "house", still don't know what these bounds should be...
 x3_ref=66.0/90
 #added objective term to punish the powerbalance!!!!!!
@@ -160,9 +160,9 @@ ubg = []
 Xk = MX.sym('X0', 5) #changed to three since we now have three x-es!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 w += [Xk]
 #lbw += [67.0, 66.5, 66.0, 53.0 ]  #init conditions!!!!!!!!!!!!!!
-lbw +=[62.0/90, 62/90, 62.0/90, 62.0/90, 22.0/100 ]
-ubw += [62.0/90, 62/90, 62.0/90, 62.0/90, 22.0/100 ]
-w0 += [62.0/90, 62.0/90, 62.0/90, 62.0/90, 22.0/100 ] #her begynner casaadi å søke, må være feasible!!!!, ikke del på null
+lbw +=[62.0/90, 62/90, 62.0/90, 62.0/90, 62.0/100 ]
+ubw += [62.0/90, 62/90, 62.0/90, 62.0/90, 62.0/100 ]
+w0 += [62.0/90, 62.0/90, 62.0/90, 62.0/90, 62.0/100 ] #her begynner casaadi å søke, må være feasible!!!!, ikke del på null
 
 pb_values = []
 pl_values = []
@@ -196,7 +196,7 @@ for k in range(N):
     #changed now to have more realistic limits, let's see!!
     lbw += [40.0/90, 40.0/90, 40.0/90, 30.0/90, 20.0/100 ] # temperatur av TES skal eeeeeeeeegt ikke gå lavere enn 65 men tester dette....
     ubw += [90.0/90, 90.0/90, 90.0/90, 90.0/90, 90.0/100 ]
-    w0 += [62.0/90, 62.0/90, 62.0/90, 62.0/90, 22.0/100 ]  #endret her til 78 på dg
+    w0 += [62.0/90, 62.0/90, 62.0/90, 62.0/90, 62.0/100 ]  #endret her til 78 på dg
   
     # Add equality constraint
     g   += [Xk_end-Xk] #blå minus rød fra video, multiple shoot constrainten!!! bruker g for vanlige constraints også
@@ -272,8 +272,8 @@ plt.step(t_values/(60*60), vertcat(DM.nan(1), u1_opt), '-.') #her i plottingen k
 plt.step(t_values/(60*60), vertcat(DM.nan(1), u2_opt), '-.') #prøver å få plotta alle u-ene, får se hva som skjer...
 plt.step(t_values/(60*60), vertcat(DM.nan(1), u3_opt), '-.')
 plt.step(t_values/(60*60), vertcat(DM.nan(1), u4_opt), '-.')
-plt.step(t_values/(60*60), vertcat(DM.nan(1), u5_opt), '--')
-plt.step(t_values/(60*60), vertcat(DM.nan(1), u6_opt*100), '--')
+plt.step(t_values/(60*60), vertcat(DM.nan(1), u5_opt)*1000, '--')
+plt.step(t_values/(60*60), vertcat(DM.nan(1), u6_opt*300), '--')
 #print('here is u6_opt lezzgo: ',u6_opt)
 
 plt.ylabel('Percentage')
@@ -285,7 +285,7 @@ plt.legend(['u1:power_%_DG','u2:power_%_boiler','u3:%_mass_flow_DG','u4:%_mass_f
 plt.figure(3)
 #plotting the new state and scaling mehhhh
 plt.plot(t_vals_pbosv/(60*60), np_pb*300, '.' )
-plt.plot(t_vals_pbosv/(60*60),np_pcurt*10000, '--')
+plt.plot(t_vals_pbosv/(60*60),np_pcurt*1000, '--')
 plt.plot(t_vals_pbosv/(60*60),np_pel, '-')
 plt.plot(t_vals_pbosv/(60*60),np_pd,'.-')
 plt.plot(t_vals_pbosv/(60*60),np_pl,'.-' )
@@ -294,7 +294,7 @@ plt.plot(t_vals_pbosv/(60*60), np_powerbal, '-.')
 plt.ylabel('Power in kW')
 plt.xlabel('T: hours')
 plt.legend(['pb: power in/out of batttery','pcurt: curtailed PV power','pel: power used electrical boiler'
-            , 'pd:power prod Diesel', 'pl: power used Isfjorden','ppv: power prod PV', 'powerbalance,0 ideally'])
+            , 'pd:power prod Diesel', 'pl: power used Isfjorden','ppv: power prod PV', 'powerbalance'])
 plt.grid()
 plt.show()
 

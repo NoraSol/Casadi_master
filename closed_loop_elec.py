@@ -103,15 +103,15 @@ def params_xdot():
                 (pb/beta))
     
     #weighing of the different components of the objective function...
-    c_X3=20.5 
+    c_X3=1.3 
 
-    c_co2=0.11 #seeing what the temperatures end up with now
-    c_boiler=0.1
-    c_u3=0.01
-    c_u4=0.01
-    c_curt=0.01
-    c_pb = 0.01
-    c_powerbalance= 30.0
+    c_co2=0.0119 #seeing what the temperatures end up with now
+    c_boiler=0.001
+    c_u3=0.0011
+    c_u4=0.0011
+    c_curt=0.012
+    c_pb = 1.0
+    c_powerbalance= 0.055
     #reference temperatures to ensure high enough temperature in the "house", still don't know what these bounds should be...
     x3_ref=66.0/90
     #added objective term to punish the powerbalance!!!!!!
@@ -359,18 +359,18 @@ plt.legend(['x1:temp water dg','x2:temp water boiler','x3:temp water tes','x4:te
 plt.figure(2)
 plt.plot(tgrid, u1_done_np, '--') 
 plt.plot(tgrid, u2_done_np, '-.') 
-plt.plot(tgrid, u3_done_np, '.') 
+plt.plot(tgrid, u3_done_np, '--') 
 plt.plot(tgrid, u4_done_np, '-.') 
-plt.plot(tgrid, u5_done_np, '-.')
-plt.plot(tgrid, u6_done_np*100, '-.')
+plt.plot(tgrid, u5_done_np*1000, '-.')
+plt.plot(tgrid, u6_done_np*300, '-.')
 plt.xlabel('T: hours')
 plt.ylabel('Percentage')
 plt.legend(['u1:power_%_DG','u2:power_%_boiler','u3:%_mass_flow_DG','u4:%_mass_flow_boiler', 'u5: ppv curtailed','u6: pb'])
 
 plt.figure(3)
 #plotting the new state and scaling mehhhh
-plt.plot(t_vals_pbosv/(60*60), np_pb*300, '.' )
-plt.plot(t_vals_pbosv/(60*60),np_pcurt*10000, '--')
+plt.plot(t_vals_pbosv/(60*60), np_pb*300, '--' )
+plt.plot(t_vals_pbosv/(60*60),np_pcurt*1000, '--')
 plt.plot(t_vals_pbosv/(60*60),np_pel, '-')
 plt.plot(t_vals_pbosv/(60*60),np_pd,'.-')
 plt.plot(t_vals_pbosv/(60*60),np_pl,'.-' )
@@ -379,7 +379,7 @@ plt.plot(t_vals_pbosv/(60*60), np_powerbal, '-.')
 plt.ylabel('Power in kW')
 plt.xlabel('T: hours')
 plt.legend(['pb: power in/out of batttery','pcurt: curtailed PV power','pel: power used electrical boiler'
-            , 'pd:power prod Diesel', 'pl: power used Isfjorden','ppv: power prod PV', 'powerbalance,0 ideally'])
+            , 'pd:power prod Diesel', 'pl: power used Isfjorden','ppv: power prod PV', 'powerbalance'])
 
 
 plt.grid()
