@@ -31,13 +31,17 @@ u= vertcat(u1,u2,u3,u4,u5,u6)
 
 #A symbolic vector of the data of ppv power production
 ppv = MX.sym('ppv')
+#A symbolic vector of the power consumption of the load
+pl = MX.sym('pl')
 
 
 Data_ppv_values = []
+#this is for insertin gnoise
 mu, sigma = 2, 0.5
 s = np.random.normal(mu, sigma, 288)
+
 for i in range(2*N):
-    Data_ppv_values.append(80+s[i])
+    Data_ppv_values.append(10+177*sin(0.02*i+ 1*pi+0.2)**2)
     #if i<70:
        # Data_ppv_values.append(100)
     #else: Data_ppv_values.append(50)
@@ -46,13 +50,22 @@ for i in range(2*N):
 np_D_ppv=np.array(Data_ppv_values)
 Data_ppv_values_plott = []
 for i in range(N):
-    Data_ppv_values_plott.append(80+s[i])
+    Data_ppv_values_plott.append(10+177*sin(0.02*i + 1*pi+0.2)**2)
     #if i<70:
         #Data_ppv_values_plott.append(100)
     #else: Data_ppv_values_plott.append(50)
 
 #print(np.array(v_list)) 
 np_D_ppv_plott=np.array(Data_ppv_values_plott)
+#inserting the correct values of the load!
+Data_pl_values = []
+for i in range(2*N):
+    Data_pl_values.append(60 + 25*sin(0.02*i-1.6+1*pi/2)**2+0.8*sin(1*i)**2)
+np_D_pl = np.array(Data_pl_values)
+Data_pl_values_plott = []
+for i in range(N):
+    Data_pl_values_plott.append(60+ 25*sin(0.02*i-1.6+1*pi/2)**2+0.8*sin(1*i)**2)
+np_D_pl_plott = np.array(Data_pl_values_plott)
 
 pb_values = []
 pl_values = []
@@ -91,7 +104,7 @@ def params_xdot():
 
     beta=  111.94 # 403*1000/(60*60), should be correct #4 #this can also be chaaaanged 
     #pw=55 #kw just guessing for now
-    pl=90 #kw, this is what the hotel/house needs
+    #pl=90 #kw, this is what the hotel/house needs
     pcurt =u5*ppv
     #pel=q_BOILER/0.98
     pel=(u2*BOILER_MAX_HEAT)/0.98
@@ -131,24 +144,25 @@ def rk4():
    Powerbalace=params_xdot()[2]
    M = 4 # RK4 steps per interval
    DT = T/N/M #dette er time-step 
-   f = Function('f', [x, u, ppv], [x_dot,L ]) #f(xk,uk), dette er funksjoin man vil integrere, ender opp med x_dot og L
+   f = Function('f', [x, u, ppv, pl], [x_dot,L ]) #f(xk,uk), dette er funksjoin man vil integrere, ender opp med x_dot og L
    X0 = MX.sym('X0', 5) #init state,
    U = MX.sym('U', 6) #sier her at det er fire u-er!!!
    PPV = MX.sym('PPV',1)
+   PL = MX.sym('PL',1)
    X = X0
    Q = 0
    for j in range(M): #mer nøyaktig versjon, er runge kutta 4, de ulike k-likningene osv, her finner vi neste state
-       k1, k1_q = f(X, U, PPV)
-       k2, k2_q = f(X + DT/2 * k1, U, PPV)
-       k3, k3_q = f(X + DT/2 * k2, U, PPV)
-       k4, k4_q = f(X + DT * k3, U, PPV)
+       k1, k1_q = f(X, U, PPV, PL)
+       k2, k2_q = f(X + DT/2 * k1, U, PPV, PL)
+       k3, k3_q = f(X + DT/2 * k2, U, PPV, PL)
+       k4, k4_q = f(X + DT * k3, U, PPV, PL)
        X=X+DT/6*(k1 +2*k2 +2*k3 +k4)
        Q = Q + DT/6*(k1_q + 2*k2_q + 2*k3_q + k4_q)
-   F = Function('F', [X0, U, PPV], [X, Q],['x0','p', 'ppv'],['xf','qf']) #xf: x final, Qf : final cost, F er integralet av f
+   F = Function('F', [X0, U, PPV, PL], [X, Q],['x0','p', 'ppv', 'pl'],['xf','qf']) #xf: x final, Qf : final cost, F er integralet av f
    return F
 
-def plant(x0,u_current, PPV,F): #take in F intead of calling on the rk4() all the time
-   F_new=F(x0=x0,p=u_current,ppv=PPV) #should not have to do the brackets for p
+def plant(x0,u_current, PPV, PL, F): #take in F intead of calling on the rk4() all the time
+   F_new=F(x0=x0,p=u_current,ppv=PPV, pl=PL) #should not have to do the brackets for p
    return F_new["xf"] #this is to not struggle with the wrong format and only get the state values
 
 # Formulate discrete time dynamics|
@@ -166,6 +180,7 @@ else:
 #print(Fk['qf'])
 w=[]
 wPPV = []
+wPL = []
 w0 = []
 lbw = []
 ubw = []
@@ -187,7 +202,7 @@ ubw += x0_init
 w0 += x0_init #her begynner casaadi å søke, må være feasible!!!!, ikke del på null
 
 # Formulate the NLP
-def formulating(w, wPPV,w0,lbw,ubw,J,g,lbg,ubg,Xk):
+def formulating(w, wPPV, wPL,w0,lbw,ubw,J,g,lbg,ubg,Xk):
     # Start with an empty NLP, initialiserer et tom nlp for å bruke multiple shooting
     
     for k in range(N):
@@ -198,10 +213,12 @@ def formulating(w, wPPV,w0,lbw,ubw,J,g,lbg,ubg,Xk):
         ubw += [1,1,1,1,1,1] #w er decision variable, xuuuxuxuxu #trying to see if u gets bigger now
     
         w0  += [0,0,0,0,0,0]
+        PLk = MX.sym('PL' + str(k), 1)
+        wPL += [PLk]
         PPVk= MX.sym('PPV_' + str(k),1)
         wPPV += [PPVk]
         # Integrate till the end of the interval
-        Fk = F(x0=Xk, p=Uk,ppv=PPVk ) #x-en på slutt av første intervalll
+        Fk = F(x0=Xk, p=Uk,ppv=PPVk, pl= PLk ) #x-en på slutt av første intervalll
         Xk_end = Fk['xf']
         J=J+Fk['qf'] #inkrementerer cost
 
@@ -219,10 +236,10 @@ def formulating(w, wPPV,w0,lbw,ubw,J,g,lbg,ubg,Xk):
         #både equality og inequality constraints havner her, om ubegrenset: upper bound uendelig for eksempel
         lbg += [0, 0, 0, 0, 0]
         ubg += [0, 0, 0, 0, 0] #changed this from [0,0,0] and it now evaluates objective function more times...
-    return w,wPPV,g,w0,lbw,ubw,lbg,ubg,J,Xk_end,Fk
+    return w,wPPV, wPL, g,w0,lbw,ubw,lbg,ubg,J,Xk_end,Fk
 
 # Create an NLP solver
-w,wPPV,g,w0,lbw,ubw,lbg,ubg,J,Xk_end,Fk=formulating(w,wPPV, w0,lbw,ubw,J,g,lbg,ubg,Xk)
+w,wPPV, wPL,g,w0,lbw,ubw,lbg,ubg,J,Xk_end,Fk=formulating(w,wPPV,wPL, w0,lbw,ubw,J,g,lbg,ubg,Xk)
 #print("here is w0 yasss: ",w0, "here is the length: ",len(w0))
 def update_wo(u_guess_0, x0_init):
     w0=[]
@@ -244,8 +261,10 @@ def update_lbw_ubw(x0_init):
         ubw += [90.0/90, 90.0/90, 90.0/90, 90.0/90, 90.0/90 ]
     return lbw,ubw
 
-
-prob = {'f': J, 'x': vertcat(*w), 'g': vertcat(*g), 'p': vertcat(*wPPV)} #kom tilbake til parametere som varierer, om de inngår i difflikningene
+#Should the pl also be in p??????????????
+parameters= vertcat(*wPPV, *wPL)
+prob = {'f': J, 'x': vertcat(*w), 'g': vertcat(*g), 'p': parameters} 
+#Should the pl also be in p??????????????
 solver = nlpsol('solver', 'ipopt', prob);
 
 #initializing the final output we want to plot...
@@ -262,9 +281,13 @@ x_guess = np.array(w0[num_controls * N :]).reshape(N + 1, num_states).T
 for i in range(N):
     ppv=np_D_ppv[i] #does this even help???
     mpc_ppv = np_D_ppv[i:i+N]
+    #new for pl!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    pl=np_D_pl[i]
+    mpc_pl = np_D_pl[i:i+N]
     final_state_results.append(x0_init) 
+    parameters=np.concatenate((mpc_ppv,mpc_pl))
     #solver skal ha lengdte på 1156 inn som w0,lbw og ubw, mens lbg og ubg skal ha leNgde 576
-    sol = solver(x0=w0, lbx=lbw, ubx=ubw, lbg=lbg, ubg=ubg, p=mpc_ppv) ###################
+    sol = solver(x0=w0, lbx=lbw, ubx=ubw, lbg=lbg, ubg=ubg, p=parameters) ###################
     w_opt = sol['x'].full().flatten()
     #print("w_opt før u_guess: ", len(w_opt),w_opt[0:29])
     u_guess = w_opt[: num_controls * N].reshape(N, num_controls).T 
@@ -273,7 +296,7 @@ for i in range(N):
     #control_results.append(w_opt[4:8]) 
     control_results.append(w_opt[5:11] )# Need to check this out: 6 u's so think this is the first control input to implement!
     #THIS THE MISSING PART OF PPV?
-    plantd_next=plant(x0_init,w_opt[5:11], np_D_ppv[i],F)
+    plantd_next=plant(x0_init,w_opt[5:11], np_D_ppv[i],np_D_pl[i],F)
     #THIS THE MISSING PART OF PPV?
     x0_init=np.array(plantd_next).flatten() #to get x0_init on the right format as a [ 1 2 3]
     u_guess_0=w_opt[5:11]
@@ -304,7 +327,7 @@ u6_opt = control_results_done[5::6]
 for i in range(N):
     BOILER_MAX_HEAT= 128.0#kW heat
     DG_el = 140.0 #kW
-    pl=90 #kW
+    pl=np_D_pl[i]#kW
     ppv=np_D_ppv[i]
     Battery_max=240 #kW
     pb_values.append(u6_opt[i]*Battery_max)
@@ -312,12 +335,12 @@ for i in range(N):
     pd_values.append(u1_opt[i]*DG_el)
     #ppv_values.append(ppv)
     pcurt_values.append(ppv*u5_opt[i])
-    pl_values.append(pl)
+    #pl_values.append(pl)
     powerbal_values.append(u6_opt[i]*Battery_max+ ppv+u1_opt[i]*DG_el-(BOILER_MAX_HEAT*u2_opt[i])/0.98 - pl -ppv*u5_opt[i])
 
 np_pb=np.array(pb_values)
 #print("Here the final result of pb_values is: ", np_pb)
-np_pl=np.array(pl_values)
+#np_pl=np.array(pl_values)
 np_pd=np.array(pd_values)
 np_pel=np.array(pel_values)
 #np_ppv=np.array(ppv_values)
@@ -366,7 +389,7 @@ plt.plot(tgrid, u1_done_np, '--')
 plt.plot(tgrid, u2_done_np, '-.') 
 plt.plot(tgrid, u3_done_np, '--') 
 plt.plot(tgrid, u4_done_np, '-.') 
-plt.plot(tgrid, u5_done_np*1000, '-.')
+plt.plot(tgrid, u5_done_np*1, '-.')
 plt.plot(tgrid, u6_done_np*300, '-.')
 plt.xlabel('T: hours')
 plt.ylabel('Percentage')
@@ -375,10 +398,10 @@ plt.legend(['u1:power_%_DG','u2:power_%_boiler','u3:%_mass_flow_DG','u4:%_mass_f
 plt.figure(3)
 #plotting the new state and scaling mehhhh
 plt.plot(t_vals_pbosv/(60*60), np_pb*300, '--' )
-plt.plot(t_vals_pbosv/(60*60),np_pcurt*1000, '--')
+plt.plot(t_vals_pbosv/(60*60),np_pcurt*1, '--')
 plt.plot(t_vals_pbosv/(60*60),np_pel, '-')
 plt.plot(t_vals_pbosv/(60*60),np_pd,'.-')
-plt.plot(t_vals_pbosv/(60*60),np_pl,'.-' )
+plt.plot(t_vals_pbosv/(60*60),np_D_pl_plott,'.-' ) #here the values are printed!
 plt.plot(t_vals_pbosv/(60*60), np_D_ppv_plott, '-.')
 plt.plot(t_vals_pbosv/(60*60), np_powerbal, '-.')
 plt.ylabel('Power in kW')
