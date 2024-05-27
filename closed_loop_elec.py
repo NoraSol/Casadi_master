@@ -37,10 +37,10 @@ Data_ppv_values = []
 mu, sigma = 2, 0.5
 s = np.random.normal(mu, sigma, 288)
 for i in range(2*N):
-    Data_ppv_values.append(80+s[i])
-    #if i<70:
-       # Data_ppv_values.append(100)
-    #else: Data_ppv_values.append(50)
+   # Data_ppv_values.append(80+s[i])
+    if i<70:
+        Data_ppv_values.append(100)
+    else: Data_ppv_values.append(50)
 
 #print(np.array(v_list)) 
 np_D_ppv=np.array(Data_ppv_values)
@@ -108,14 +108,14 @@ def params_xdot():
                 (pb/beta))
     
     #weighing of the different components of the objective function...
-    c_X3=1.5
+    c_X3=1.3
 
     c_co2=0.0119 #seeing what the temperatures end up with now
     c_boiler=0.001
     c_u3=0.0011
     c_u4=0.0011
     c_curt=0.012
-    c_pb = 1.0
+    c_pb = 0.6
     c_powerbalance= 0.055
     #reference temperatures to ensure high enough temperature in the "house", still don't know what these bounds should be...
     x3_ref=66.0/90
@@ -323,7 +323,8 @@ np_pel=np.array(pel_values)
 #np_ppv=np.array(ppv_values)
 np_pcurt=np.array(pcurt_values)
 np_powerbal=np.array(powerbal_values)
-print('Here are the values of the powerbalance: ', np_powerbal)
+#print('Here are the values of the powerbalance: ', np_powerbal)
+
 
 
 x1_done_np = np.array(x1_opt)
@@ -338,6 +339,14 @@ u3_done_np = np.array(u3_opt)
 u4_done_np = np.array(u4_opt)
 u5_done_np = np.array(u5_opt)
 u6_done_np = np.array(u6_opt)
+#calculating the KPI::
+DG_heat = 22.0 # kW
+KPI=0
+for i in range(N):
+    KPI+= u1_done_np[i]
+
+KPI=KPI*DG_heat*0.57
+print('Here is the KPI for this test: ', KPI)
 
 #tgrid = [T/N*k for k in range(N+1)]
 tgrid = [(T/N*k)/(60*60) for k in range(N)]
@@ -389,3 +398,5 @@ plt.legend(['pb: power in/out of batttery','pcurt: curtailed PV power','pel: pow
 
 plt.grid()
 plt.show()
+
+
